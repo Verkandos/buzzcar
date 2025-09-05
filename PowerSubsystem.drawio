@@ -60,12 +60,6 @@
         <mxCell id="dWiQfd8XXGTzeeqTbXw0-20" value="Output from 3.3V Buck Converter" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
           <mxGeometry x="610" y="445" width="180" height="40" as="geometry" />
         </mxCell>
-        <mxCell id="dWiQfd8XXGTzeeqTbXw0-25" value="" style="endArrow=none;html=1;rounded=0;" edge="1" parent="1">
-          <mxGeometry width="50" height="50" relative="1" as="geometry">
-            <mxPoint x="810" y="473" as="sourcePoint" />
-            <mxPoint x="810" y="413" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
       </root>
     </mxGraphModel>
   </diagram>
