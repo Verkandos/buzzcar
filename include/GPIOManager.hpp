@@ -32,11 +32,11 @@
 
 class GPIOManager {
     private:
-        std::map<std::string, int> pinMappings;
+        std::map<int, std::string> pinMappings;
     public:
         GPIOManager(); 
 
-        void initializePins(const std::map<int, std::string>& Mappings);
+        void initializePins(const std::map<int, std::string>& mappings);
         void configurePin(int pin, const std::string& mode);
         void writePWM(int pin, bool duty);
         void writeDigital(int pin, bool value);

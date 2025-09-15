@@ -10,5 +10,7 @@ class Event {
         Event() = default;
         Event(const std::string& type, const std::string& source, int timestamp)
             : type(type), source(source), timestamp(timestamp) {}
-        int getType() const;
+        std::string getType() const;
+        std::string getSource() const;
+        int getTimestamp() const;
 };
