@@ -1,3 +1,9 @@
+#pragma once
+#include <map>
+#include <string>
+
+// GPIO Pin Definitions for the project
+
 // Photosensor Left
 #define PHOTO_SENSOR_LEFT_PIN 4
 
@@ -23,3 +29,18 @@
 // Reserved - USB-UART (Leave free for flashing/serial)
 #define USB_UART_TX_PIN 20
 #define USB_UART_RX_PIN 21
+
+class GPIOManager {
+    private:
+        std::map<std::string, int> pinMappings;
+    public:
+        GPIOManager(); 
+
+        void initializePins(const std::map<int, std::string>& Mappings);
+        void configurePin(int pin, const std::string& mode);
+        void writePWM(int pin, bool duty);
+        void writeDigital(int pin, bool value);
+        int readAnalog(int pin);
+        bool readDigital(int pin);
+        
+};
