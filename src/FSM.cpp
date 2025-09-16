@@ -8,9 +8,9 @@ void FSM::initialize(std::vector<State*>& states, State* initialState) {
     // Set the initial state
     currentState = initialState;
 
-    // TODO: Call onEntry of the initial state
-    if (currentState) {
-        // currentState->onEntry();
+    // Call onEntry of the initial state
+    if (currentState != nullptr) {
+        currentState->onEntry();
     }
 }
 
@@ -19,9 +19,10 @@ void FSM::transition(const Event& event) {
     // Logic to determine the next state based on the current state and event
 
     if (currentState != nullptr) {
-        // currentState->onExit();
-        // Determine next state based on event
+        return;
     }
+
+    // 
 }
 
 State* FSM::getCurrentState() const {

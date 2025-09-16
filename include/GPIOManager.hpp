@@ -4,13 +4,13 @@
 
 // GPIO Pin Definitions for the project
 
-// Photosensor Left
+// Photosensor Left (Analog)
 #define PHOTO_SENSOR_LEFT_PIN 4
 
-// Photosensor Right
+// Photosensor Right (Analog)
 #define PHOTO_SENSOR_RIGHT_PIN 7
 
-// Audio 
+// Audio (Output PWM)
 #define AUDIO_PIN 9
 
 // LCD (TBD)
@@ -20,7 +20,7 @@
 #define LCD_DC_RS_PIN 13
 #define LCD_RST_PIN 14
 
-// Motor A
+// Motor A (PWM Output)
 #define MOTOR_A_PIN 15
 
 // Motor B
@@ -38,7 +38,7 @@ class GPIOManager {
 
         void initializePins(const std::map<int, std::string>& mappings);
         void configurePin(int pin, const std::string& mode);
-        void writePWM(int pin, bool duty);
+        void writePWM(int pin, int duty);
         void writeDigital(int pin, bool value);
         int readAnalog(int pin);
         bool readDigital(int pin);

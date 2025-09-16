@@ -2,34 +2,49 @@
 #include "GPIOManager.hpp"
 
 GPIOManager::GPIOManager() {
-    // Constructor - initialize any default settings
+    // Constructor 
 }
 
 void GPIOManager::initializePins(const std::map<int, std::string>& mappings) {
     // Store the pin mappings
     pinMappings = mappings;
-    // TODO: Initialize all pins based on their mappings
-
+    
+    // Configure each pin based on the provided mappings
+    for (const auto& mapping: pinMappings) {
+        int pin = mapping.first;
+        std::string type = mapping.second;
+        configurePin(pin, type);
+    }
 }
 
 void GPIOManager::configurePin(int pin, const std::string& mode) {
     // TODO: Configure the pin mode (INPUT, OUTPUT, etc.)
+    if (mode == "digital_input") {
+        pinMode(pin, INPUT);
+    } else if (mode == "digital_input_pullup") {
+        pinMode(pin, INPUT_PULLUP);
+    } else if (mode == "analog_input") {
+        // Analog pins are input by default
+        pinMode(pin, INPUT);
+    } else if (mode == "digital_output") {
+        pinMode(pin, OUTPUT);
+    } else if (mode == "pwm_output") {
+        pinMode(pin, OUTPUT);
+    }
 }
-
-void GPIOManager::writePWM(int pin, bool duty) {
-    // TODO: Write PWM to pin
+// PWM Output: duty cycle 0-255
+void GPIOManager::writePWM(int pin, int duty) {
+    analogWrite(pin, constrain(duty, 0, 255));
 }
-
+// Digital Output: HIGH or LOW
 void GPIOManager::writeDigital(int pin, bool value) {
-    // TODO: Write digital value to pin
+    digitalWrite(pin, value ? HIGH : LOW);
 }
-
+// Analog Input (0-4095 for ESP32)
 int GPIOManager::readAnalog(int pin) {
-    // TODO: Read analog value from pin
-    return 0; // Placeholder
+    return analogRead(pin);
 }
-
+// Digital Input: HIGH or LOW
 bool GPIOManager::readDigital(int pin) {
-    // TODO: Read digital value from pin
-    return false; // Placeholder
+    return digitalRead(pin) == HIGH;
 }
