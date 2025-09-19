@@ -29,7 +29,7 @@ void PhotoSensor::initialize(int pin) {
 
 int PhotoSensor::readRaw() {
     // Get raw ADC value from GPIOManager (no processing)
-    if (pinAnalog != -1) return 0;
+    if (pinAnalog == -1) return 0;
 
     // Use singleton instance
     GPIOManager& gpio = GPIOManager::getInstance();
