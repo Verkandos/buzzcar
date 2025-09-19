@@ -3,31 +3,36 @@
 #include <string>
 
 // GPIO Pin Definitions for the project
+// ===========INPUTS===========
 
-// Photosensor A (Analog)
-#define PHOTO_SENSOR_A_PIN 15
+// Photosensor A (Input Analog: ADC Pin)
+#define PHOTO_SENSOR_A_PIN 3 // [X]
 
-// Photosensor B (Analog)
-#define PHOTO_SENSOR_B_PIN 23
+// Photosensor B (Input Analog: ADC Pin)
+#define PHOTO_SENSOR_B_PIN 2 // [X]
 
-// Photosensor C (Analog)
-#define PHOTO_SENSOR_C_PIN 22
+// Photosensor C (Input Analog: ADC Pin)
+#define PHOTO_SENSOR_C_PIN 1 // [X]
 
-// Audio (Output PWM)
-#define AUDIO_PIN 5
+// User Button (Input Digital: GPIO Pin)
+#define USER_BUTTON_PIN 11 // [X]
 
-// LCD (TBD)
-#define LCD_MOSI_PIN 6
-#define LCD_SCCLK_PIN 7
-#define LCD_CS_PIN 10
-#define LCD_DC_RS_PIN 11
-#define LCD_RST_PIN 2
+// ===========OUTPUTS==========
 
-// Motor A (PWM Output)
-#define MOTOR_A_PIN 21
+// Audio (Output [PWM]: GPIO Pin)
+#define AUDIO_PIN 23 // [X]
 
-// Motor B
-#define MOTOR_B_PIN 20
+// LCD (GPIO Pin)
+#define LCD_DATA_PIN 22 // [X]
+#define LCD_CLK_PIN 21 // [X]
+
+
+// Motor A (Output [PWM]: GPIO Pin)
+#define MOTOR_A_PIN 20 // [X]
+
+// Motor B (Output [PWM]: GPIO Pin)
+#define MOTOR_B_PIN 19 // [X]
+
 
 
 class GPIOManager {
