@@ -573,8 +573,8 @@
 			(uuid "2284961c-bc47-406a-9fd4-fab6a0022b7e")
 		)
 		(fp_rect
-			(start -0.0998 43.4086)
-			(end 8.5362 50.6984)
+			(start -0.0998 42.5)
+			(end 8.5362 49.7898)
 			(stroke
 				(width 0.12)
 				(type solid)
@@ -6150,7 +6150,7 @@
 		(sheetfile "buzzcar_main.kicad_sch")
 		(attr through_hole)
 		(fp_line
-			(start 8.35 -1.37)
+			(start 9 -1.37)
 			(end 1.81 -1.37)
 			(stroke
 				(width 0.12)
@@ -6170,8 +6170,8 @@
 			(uuid "12fd8a1a-7a07-4659-9eed-60c81e229209")
 		)
 		(fp_line
-			(start 9.12 0)
-			(end 8.35 0)
+			(start 9 0)
+			(end 8.5 0)
 			(stroke
 				(width 0.12)
 				(type solid)
@@ -6190,8 +6190,8 @@
 			(uuid "a9e931c1-71f0-45ab-8af6-301e1ed9a77c")
 		)
 		(fp_line
-			(start 8.35 1.37)
-			(end 8.35 -1.37)
+			(start 9 1.37)
+			(end 9 -1.37)
 			(stroke
 				(width 0.12)
 				(type solid)
@@ -6201,7 +6201,7 @@
 		)
 		(fp_line
 			(start 1.81 1.37)
-			(end 8.35 1.37)
+			(end 9 1.37)
 			(stroke
 				(width 0.12)
 				(type solid)
