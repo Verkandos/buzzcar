@@ -1,23 +1,20 @@
 #pragma once
 #include "State.hpp"
+#include "PIDController.hpp"
 
 class ForwardState : public State {
     private:
-        // PID Controller variables
-        float kp, ki, kd;
-        float previousError;
-        float integral;
-        float setpoint;
+        int baseSpeed; // Base speed for both motors (0-100%)
+        PIDController pidController; // PID controller for line following
     public:
-        ForwardState() : State("Forward"), kp(1.0f), ki(0.0), kd(0.0f), 
-        previousError(0.0f), integral(0.0f), setpoint(0.0f) {}
-    
-        void onEntry() override;
-        void onUpdate() override;
-        void onExit() override;
+        ForwardState();
+
+        void onEntry(ControlSubsystem* context);
+        void onUpdate(ControlSubsystem* context);
+        void onExit(ControlSubsystem* context);
 
         // PID specific methods
+        
         void setPIDGains(float p, float i, float d);
-        void setSetpoint(float target);
-        float computePID(float currentValue);
+        void setBaseSpeed(int speed);
 };
