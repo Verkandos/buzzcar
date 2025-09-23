@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include "ControlSubsystem.hpp"
 
 class State {
     private:
@@ -9,9 +10,9 @@ class State {
         State(const std::string& stateName) : name(stateName) {}
         virtual ~State() = default;
 
-        virtual void onEntry() = 0;
-        virtual void onUpdate() = 0;
-        virtual void onExit() = 0;
+        virtual void onEntry(ControlSubsystem* context) = 0;
+        virtual void onUpdate(ControlSubsystem* context) = 0;
+        virtual void onExit(ControlSubsystem* context) = 0;
 
         std::string getName() const { return name; }
 };
