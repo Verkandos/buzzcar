@@ -1,6 +1,8 @@
 #pragma once
 #include "State.hpp"
 
+class ControlSubsystem;
+
 class IdleState : public State {
     private:
         unsigned long waitStartTime;
