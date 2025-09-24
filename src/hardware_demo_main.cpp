@@ -1,104 +1,58 @@
 /*
- * BuzzCar Simple Hardware Demo
+ * BuzzCar Static PWM Signal Test
  * 
- * Simple hardware test for integration:
- * 1. Shows real-time sensor readings from all 3 photosensors
- * 2. Tests both motors (OFF and 50% speed)
- * 3. 9600 baud serial output
- * 4. 160MHz CPU frequency
+ * Static PWM output test:
+ * - Motor A & B at 10kHz/50% duty cycle (continuous)
+ * - Speaker at 5kHz/50% duty cycle (continuous)
+ * - 115200 baud serial output
+ * - 160MHz CPU frequency
  */
 
 #include <Arduino.h>
 #include "GPIOManager.hpp"
-#include "Motor.hpp"
-#include "PhotoSensor.hpp"
 
-// Hardware components  
-Motor motorA(MOTOR_A_PIN);
-Motor motorB(MOTOR_B_PIN);
-PhotoSensor sensorA(PHOTO_SENSOR_A_PIN);
-PhotoSensor sensorB(PHOTO_SENSOR_B_PIN);
-PhotoSensor sensorC(PHOTO_SENSOR_C_PIN);
-
-// Simple test state
-bool motorsOn = false;
-unsigned long lastToggle = 0;
-const unsigned long TOGGLE_INTERVAL = 3000; // 3 seconds
+// PWM test parameters
+const int MOTOR_FREQUENCY = 10000; // 10kHz for motors
+const int AUDIO_FREQUENCY = 5000;  // 5kHz for speaker
+const int DUTY_CYCLE_50_PERCENT = 128; // 50% of 255 (8-bit resolution)
 
 void setup() {
+    // Initialize serial at 115200 baud
+    #if ARDUINO_USB_CDC_ON_BOOT
+        Serial.begin(); // No baud rate needed for USB CDC
+    #else
+        Serial.begin(115200);
+    #endif
+    delay(2000); // Give serial time to initialize
+
     // Set CPU frequency to 160MHz
     setCpuFrequencyMhz(160);
-    
-    // Initialize serial at 9600 baud
-    Serial.begin(9600); // ISSUE: Serial not working on ESP32-C6
-    delay(2000); // Give serial time to initialize
-    
-    Serial.println();
-    Serial.println("=== BuzzCar Hardware Demo Starting ===");
-    Serial.println("BuzzCar Hardware Demo");
-    Serial.println("====================");
-    Serial.println("Serial communication working!");
     
     // Check CPU frequency
     Serial.print("CPU Frequency: ");
     Serial.print(getCpuFrequencyMhz());
     Serial.println(" MHz");
     
-    // Initialize hardware
-    Serial.println("Initializing hardware...");
+    // Get GPIO Manager instance
+    GPIOManager& gpio = GPIOManager::getInstance();
     
-    // Motors
-    motorA.initialize();
-    motorB.initialize();
-    Serial.println("Motors initialized");
+    // Configure and start PWM pins
+    Serial.println("Configuring PWM pins...");
     
-    // Sensors
-    sensorA.initialize();
-    sensorB.initialize(); 
-    sensorC.initialize();
-    Serial.println("Sensors initialized");
+    gpio.configurePWMPin(MOTOR_A_PIN, MOTOR_FREQUENCY, 8);  // 10kHz
+    gpio.configurePWMPin(MOTOR_B_PIN, MOTOR_FREQUENCY, 8);  // 10kHz
+    gpio.configurePWMPin(AUDIO_PIN, AUDIO_FREQUENCY, 8);    // 5kHz
     
-    Serial.println("Starting demo...");
-    Serial.println();
+    Serial.println("Starting PWM signals at 50% duty cycle...");
+    
+    // Set static 50% duty cycle on all pins
+    gpio.writePWM(MOTOR_A_PIN, DUTY_CYCLE_50_PERCENT);  // Motor A
+    gpio.writePWM(MOTOR_B_PIN, DUTY_CYCLE_50_PERCENT);  // Motor B
+    gpio.writePWM(AUDIO_PIN, DUTY_CYCLE_50_PERCENT);    // Audio
+    
 }
 
 void loop() {
-    unsigned long currentTime = millis();
-    
-    // Toggle motors every 3 seconds
-    if (currentTime - lastToggle >= TOGGLE_INTERVAL) {
-        motorsOn = !motorsOn;
-        lastToggle = currentTime;
-        
-        if (motorsOn) {
-            Serial.println("Motors: ON (50% speed)");
-            motorA.setSpeed(50);
-            motorB.setSpeed(50);
-        } else {
-            Serial.println("Motors: OFF");
-            motorA.stop();
-            motorB.stop();
-        }
-        Serial.println();
-    }
-    
-    // Read and display sensors
-    int rawA = sensorA.readRaw();
-    int rawB = sensorB.readRaw();
-    int rawC = sensorC.readRaw();
-    
-    Serial.print("Sensors: A=");
-    Serial.print(rawA);
-    Serial.print("  B=");
-    Serial.print(rawB);
-    Serial.print("  C=");
-    Serial.print(rawC);
-    
-    // Show motor status
-    Serial.print("  |  Motors: ");
-    Serial.print(motorsOn ? "50%" : "OFF");
-    
-    Serial.println();
-    
-    delay(500); // Update every 500ms
+    // Just keep running - PWM signals stay active
+    delay(5000);
 }
