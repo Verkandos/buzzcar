@@ -46,23 +46,35 @@ void GPIOManager::configurePin(int pin, const std::string& mode) {
 
 void GPIOManager::configurePWMPin(int pin, int frequency, int resolution) {
     #ifdef ESP32
-        // ESP32-C6 has 6 LEDC channels (0-5)
-        static int channelCounter = 0;
-        int channel = channelCounter % 6;  // Use channels 0-5, not pin % 16
-        channelCounter++;
-
-        ledcAttach(pin, frequency, resolution);
-        ledcWrite(pin, 0);  // Initialize with 0 duty cycle
+        // Use direct ESP32 LEDC driver instead of Arduino abstraction
+        int channel;
+        if (pin == 19) channel = 0;      // Motor B - Channel 0
+        else if (pin == 20) channel = 1; // Motor A - Channel 1  
+        else if (pin == 23) channel = 2; // Audio - Channel 2
+        else channel = 3; // Default
+        
+        // Configure LEDC timer
+        ledc_timer_config_t timer_config = {
+            .speed_mode = LEDC_LOW_SPEED_MODE,
+            .duty_resolution = (ledc_timer_bit_t)resolution,
+            .timer_num = (ledc_timer_t)channel,
+            .freq_hz = (uint32_t)frequency,
+            .clk_cfg = LEDC_AUTO_CLK
+        };
+        ledc_timer_config(&timer_config);
+        
+        // Configure LEDC channel
+        ledc_channel_config_t channel_config = {
+            .gpio_num = pin,
+            .speed_mode = LEDC_LOW_SPEED_MODE,
+            .channel = (ledc_channel_t)channel,
+            .timer_sel = (ledc_timer_t)channel,
+            .duty = 0,
+            .hpoint = 0
+        };
+        ledc_channel_config(&channel_config);
+        
         pwmChannels[pin] = channel;
-
-        Serial.print("PWM configured on pin: ");
-        Serial.print(pin);
-        Serial.print(" with frequency: ");
-        Serial.print(frequency);
-        Serial.print(" Hz and channel: ");
-        Serial.println(channel);
-    #else
-        pinMode(pin, OUTPUT);
     #endif
 }
 
@@ -71,10 +83,13 @@ void GPIOManager::writePWM(int pin, int duty) {
     duty = constrain(duty, 0, 255);
 
     #ifdef ESP32
-        // Use ESP32 Arduino Core 3.x function
-        ledcWrite(pin, duty);  // Direct pin write for ESP32 3.x
+        if (pwmChannels.find(pin) != pwmChannels.end()) {
+            int channel = pwmChannels[pin];
+            ledc_set_duty(LEDC_LOW_SPEED_MODE, (ledc_channel_t)channel, duty);
+            ledc_update_duty(LEDC_LOW_SPEED_MODE, (ledc_channel_t)channel);
+        }
     #else
-        analogWrite(pin, duty);  // Fallback for other platforms
+        analogWrite(pin, duty);  // Fallback
     #endif
 }
 // Digital Output: HIGH or LOW
