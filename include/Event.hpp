@@ -1,25 +1,47 @@
 #pragma once
 #include <string>
 
+// Event types of the Buzzcar FSM system
 enum class EventType {
+    // User Interface Events
     START,           // Button pressed to start system
     STOP,            // Button pressed to stop or off-line detected
-    TURN_LEFT,       // Line detector says turn left
-    TURN_RIGHT,      // Line detector says turn right
-    FORWARD,         // Return to forward movement
-    // ... other events
+
+    // Line Following Events
+    TURN_LEFT,       // LineDetector detected need to turn left
+    TURN_RIGHT,      // LineDetector detected need to turn right
+    FORWARD,         // LineDetector detected need to move forward
+
+
+    // System State Events
+    START_MOVEMENT,   // Transition from IdleState to ForwardState
+    OFF_LINE,           // LineDetector lost the line
+
+    UNKNOWN          // Default/error state
 };
 
+// Event class - carries event type
 class Event {
     private:
-        EventType eventType;
-        std::string source;
-        int timestamp;
+        EventType type;
+        int data; // Optional data field
+        unsigned long timestamp;
     public:
-        Event() = default;
-        Event(EventType eventType, const std::string& source, int timestamp)
-            : eventType(eventType), source(source), timestamp(timestamp) {}
+        // Constructors
+        Event();
+        Event(EventType eventType);
+        Event(EventType eventType, int eventData);
+
+        // Getters
         EventType getType() const;
-        std::string getSource() const;
-        int getTimestamp() const;
+        int getData() const;
+        unsigned long getTimestamp() const;
+
+        // Utility methods
+        bool isValid() const;
+        const char* toString() const;
+
+        // Comparison operators
+        bool operator==(const Event& other) const;
+        bool operator!=(const Event& other) const;
 };
