@@ -63,5 +63,71 @@ Event ControlSubsystem::handleEvent() {
     return generateEvent();
 }
 
+Event ControlSubsystem::generateEvent() {
+    // If hardware is not inititialized yet, return no event
+    if (lineDetector == nullptr) {
+        return Event(EventType::NONE);
+    }
+
+    // Use LineDetector's states
+    LineState lineState = lineDetector->detectLineState();
+
+    const char* currentStateName = fsm->getCurrentStateName();
+
+    
+    if(strcmp(currentStateName, "IdleState") == 0) {
+        // In IdleState, start movement if line detected
+        if (lineState == LineState::ON_LINE ||
+            lineState == LineState::TURN_LEFT ||
+            lineState == LineState::TURN_RIGHT) {
+            Serial.println("Event: Line detected while idle - START_MOVEMENT");
+            return Event(EventType::START_MOVEMENT);
+        }
+    } else if (strcmp(currentStateName, "ForwardState") == 0) {
+        // In ForwardState, check for turn conditions or off-line
+        if (lineState == LineState::TURN_LEFT) {
+            Serial.println("Event: TURN_LEFT detected");
+            return Event(EventType::TURN_LEFT);
+        } else if (lineState == LineState::TURN_RIGHT) {
+            Serial.println("Event: TURN_RIGHT detected");
+            return Event(EventType::TURN_RIGHT);
+        } else if (lineState == LineState::OFF_LINE) {
+            Serial.println("Event: OFF_LINE detected");
+            return Event(EventType::OFF_LINE);
+        }
+    } else if (strcmp(currentStateName, "TurnLeftState") == 0) {
+        // In turn left state, check if turn is complete
+        if (lineState == LineState::ON_LINE) {
+            Serial.println("Event: ON_LINE detected - complete left turn");
+            return Event(EventType::FORWARD);
+        } else if (lineState == LineState::OFF_LINE) {
+            Serial.println("Event: OFF_LINE detected during left turn");
+            return Event(EventType::OFF_LINE);
+        }
+    } else if (strcmp(currentStateName, "TurnRightState") == 0) {
+        // In turn right state, check if turn is complete
+        if (lineState == LineState::ON_LINE) {
+            Serial.println("Event: ON_LINE detected - complete right turn");
+            return Event(EventType::FORWARD);
+        } else if (lineState == LineState::OFF_LINE) {
+            Serial.println("Event: OFF_LINE detected during right turn");
+            return Event(EventType::OFF_LINE);
+        }
+    } else if (strcmp(currentStateName, "StopState") == 0) {
+        // In StopState, wait for manual reset (not implemented here)
+        if (lineState == LineState::ON_LINE) {
+            Serial.println("Event: ON_LINE detected - reset from stop");
+            return Event(EventType::START_MOVEMENT);
+        }
+    }
+
+    if (lineState == LineState::UNKNOWN) {
+        Serial.println("Event: UNKNOWN line state detected");
+        return Event(EventType::UNKNOWN);
+    }
+
+    // No significant event detected
+    return Event(EventType::NONE);
+}
 
 
