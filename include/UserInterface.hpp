@@ -20,5 +20,5 @@ class UserInterface {
 
         bool wasButtonPressed(); // Edge detection 
         void toggleSystem(); // Handle on/off logic
-        bool isSystemOn() const { return turnedOn; } // Check system state
+        bool isSystemOn() const; // Check system state
 };

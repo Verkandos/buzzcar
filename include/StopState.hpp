@@ -4,8 +4,11 @@
 class ControlSubsystem;
 
 class StopState : public State {
-public:
-    void onEntry(ControlSubsystem* context) override;
-    void onUpdate(ControlSubsystem* context) override;
-    void onExit(ControlSubsystem* context) override;
+    public:
+        StopState() : State("StopState") {}
+        ~StopState() override = default;
+        
+        void onEntry(ControlSubsystem* controlSys) override;
+        void onUpdate(ControlSubsystem* controlSys) override;
+        void onExit(ControlSubsystem* controlSys) override;
 };

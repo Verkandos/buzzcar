@@ -11,10 +11,11 @@ class TurnRightState : public State {
         PIDController pidController; // PID controller for turn fine-tuning
 public:
     TurnRightState();
+    ~TurnRightState() override = default;
 
-    void onEntry(ControlSubsystem* context) override;
-    void onUpdate(ControlSubsystem* context) override;
-    void onExit(ControlSubsystem* context) override;
+    void onEntry(ControlSubsystem* controlSys) override;
+    void onUpdate(ControlSubsystem* controlSys) override;
+    void onExit(ControlSubsystem* controlSys) override;
 
     // Configuration methods
     void setTurnSpeed(int speed);

@@ -1,9 +1,9 @@
 #pragma once
-#include "State.hpp"
 #include "Event.hpp"
-#include <vector>
+#include "State.hpp"
 #include <memory>
 
+// Forward Declaration
 class ControlSubsystem;
 
 class FSM {
@@ -11,31 +11,34 @@ class FSM {
         std::unique_ptr<State> currentState;
         ControlSubsystem* context;
 
-        // State instances (managed by FSM)
-        std::unique_ptr<State> idleState;
-        std::unique_ptr<State> forwardState;
-        std::unique_ptr<State> turnLeftState;
-        std::unique_ptr<State> turnRightState;
-        std::unique_ptr<State> stopState;
-
-        // Internal methods
-        void transitionTo(std::unique_ptr<State> newState);
-        bool isValidTransition(EventType eventType) const;
-
     public:
         FSM(ControlSubsystem* controlContext);
         ~FSM();
-
-        // Core FSM methods
+        
+        // Initialize FSM - starts in IdleState
         void initialize();
-        void update();
+        
+        // Handle events and perform state transitions
         void handleEvent(const Event& event);
-
-        // State management
+        
+        // Transition to a new state
+        void transitionTo(State* newState);
+        
+        // Update current state
+        void update();
+        
+        // Get current state
         State* getCurrentState() const;
+        
+        // Get current state name for debugging
         const char* getCurrentStateName() const;
-
-        // Utility methods
+        
+        // Reset FSM to initial state
         void reset();
+        // Check if FSM is in a specific state
         bool isInState(const char* stateName) const;
+        
+        // Validate if a transition is allowed
+        bool isValidTransition(EventType eventType) const;
+
 };

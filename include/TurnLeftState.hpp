@@ -12,10 +12,11 @@ class TurnLeftState : public State {
 
     public:
         TurnLeftState();
-    
-        void onEntry(ControlSubsystem* context) override;
-        void onUpdate(ControlSubsystem* context) override;
-        void onExit(ControlSubsystem* context) override;
+        ~TurnLeftState() override = default;
+
+        void onEntry(ControlSubsystem* controlSys) override;
+        void onUpdate(ControlSubsystem* controlSys) override;
+        void onExit(ControlSubsystem* controlSys) override;
 
         // Configuration methods
         void setTurnSpeed(int speed);

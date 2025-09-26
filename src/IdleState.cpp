@@ -2,15 +2,16 @@
 #include "IdleState.hpp"
 #include "ControlSubsystem.hpp"
 #include "Event.hpp"
+#include "FSM.hpp"
 
-IdleState::IdleState() : waitStartTime(0), waitDuration(3000), isWaiting(false) {
-    // Wait for 2 seconds before transitioning to Forward state
+IdleState::IdleState() : State("IdleState"), waitStartTime(0), waitDuration(3000), isWaiting(false) {
+    // Initialize with base State name and member variables
 }
 
 void IdleState::onEntry(ControlSubsystem* context) {
     // Ensure motors are stopped
-    context->getMotorA().setSpeed(0);
-    context->getMotorB().setSpeed(0);
+    context->getMotorA()->setSpeed(0);
+    context->getMotorB()->setSpeed(0);
 
     // Start waiting period
     waitStartTime = millis();
@@ -26,7 +27,7 @@ void IdleState::onUpdate(ControlSubsystem* context) {
         if (millis() - waitStartTime >= waitDuration) {
             isWaiting = false;
             // Transition to Forward state after waiting
-            context->getFSM().handleEvent(Event(EventType::START));
+            context->getFSM()->handleEvent(Event(EventType::START_MOVEMENT));
         }
     }
     // If not waiting, just remain idle until event triggers transition

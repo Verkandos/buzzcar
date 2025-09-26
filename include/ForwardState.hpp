@@ -2,16 +2,19 @@
 #include "State.hpp"
 #include "PIDController.hpp"
 
+class ControlSubsytem;
+
 class ForwardState : public State {
     private:
         int baseSpeed; // Base speed for both motors (0-100%)
         PIDController pidController; // PID controller for line following
     public:
         ForwardState();
+        ~ForwardState() override = default;
 
-        void onEntry(ControlSubsystem* context);
-        void onUpdate(ControlSubsystem* context);
-        void onExit(ControlSubsystem* context);
+        void onEntry(ControlSubsystem* controlSys) override;
+        void onUpdate(ControlSubsystem* controlSys) override;
+        void onExit(ControlSubsystem* controlSys) override;
 
         // PID specific methods
         

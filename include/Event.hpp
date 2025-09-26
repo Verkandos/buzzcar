@@ -17,6 +17,7 @@ enum class EventType {
     START_MOVEMENT,   // Transition from IdleState to ForwardState
     OFF_LINE,           // LineDetector lost the line
 
+    NONE,
     UNKNOWN          // Default/error state
 };
 

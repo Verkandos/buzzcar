@@ -12,14 +12,14 @@ void ForwardState::onEntry(ControlSubsystem* context) {
     pidController.reset();
 
     // Start both motors at base speed
-    context->getMotorA().setSpeed(baseSpeed); // Left motor
-    context->getMotorB().setSpeed(baseSpeed); // Right motor
-    
+    context->getMotorA()->setSpeed(baseSpeed); // Left motor
+    context->getMotorB()->setSpeed(baseSpeed); // Right motor
+
 }
 
 void ForwardState::onUpdate(ControlSubsystem* context) {
     // Get line position from LineDetector (0.0 = centered, negative = line to left, positive = line to right)
-    float linePosition = context->getLineDetector().calculateLinePosition();
+    float linePosition = context->getLineDetector()->calculateLinePosition();
 
     // PID setpoint is 0.0 (we want to stay centered on the line)
     float pidOutput = pidController.compute(0.0f, linePosition);
@@ -34,15 +34,15 @@ void ForwardState::onUpdate(ControlSubsystem* context) {
     rightMotorSpeed = constrain(rightMotorSpeed, 0, 100);
 
     // Apply corrected speeds to motors
-    context->getMotorA().setSpeed(leftMotorSpeed);
-    context->getMotorB().setSpeed(rightMotorSpeed);
+    context->getMotorA()->setSpeed(leftMotorSpeed);
+    context->getMotorB()->setSpeed(rightMotorSpeed);
 
 }
 
 void ForwardState::onExit(ControlSubsystem* context) {
     // Stop both motors when exiting forward state
-    context->getMotorA().setSpeed(0);
-    context->getMotorB().setSpeed(0);
+    context->getMotorA()->setSpeed(0);
+    context->getMotorB()->setSpeed(0);
 }
 
 void ForwardState::setPIDGains(float p, float i, float d) {

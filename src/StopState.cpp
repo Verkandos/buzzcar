@@ -1,11 +1,12 @@
 #include <Arduino.h>
 #include "StopState.hpp"
 #include "ControlSubsystem.hpp"
+#include "FSM.hpp"
 
 void StopState::onEntry(ControlSubsystem* context) {
     // Immediately stop all motors when entering the Stop state
-    context->getMotorA().setSpeed(0);
-    context->getMotorB().setSpeed(0);
+    context->getMotorA()->setSpeed(0);
+    context->getMotorB()->setSpeed(0);
 
     // context->getUserInterface().setSystemOff(); // Update UI to reflect stopped state;
 }

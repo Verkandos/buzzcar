@@ -11,10 +11,11 @@ class IdleState : public State {
 
     public:
         IdleState();
+        ~IdleState() override = default;
 
-        void onEntry(ControlSubsystem* context) override;
-        void onUpdate(ControlSubsystem* context) override;
-        void onExit(ControlSubsystem* context) override;
+        void onEntry(ControlSubsystem* controlSys) override;
+        void onUpdate(ControlSubsystem* controlSys) override;
+        void onExit(ControlSubsystem* controlSys) override;
 
         void setWaitDuration(int durationMs);
 };
