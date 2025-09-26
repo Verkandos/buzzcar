@@ -23,7 +23,15 @@ ControlSubsystem::ControlSubsystem()
 }
 
 ControlSubsystem::~ControlSubsystem() {
-    // FSM will handle cleanup of states internally
+    // Clean up dynamically allocated resources
+    delete motorA;
+    delete motorB;
+    delete lineDetector;
+    delete sensorLeft;
+    delete sensorCenter;
+    delete sensorRight;
+    delete pidController;
+    // States are managed by FSM, so no need to delete them here
 }
 
 void ControlSubsystem::initialize() {
