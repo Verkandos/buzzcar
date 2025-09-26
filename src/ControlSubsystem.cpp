@@ -6,6 +6,7 @@
 #include "TurnLeftState.hpp"
 #include "TurnRightState.hpp"
 #include "StopState.hpp"
+#include "GPIOManager.hpp"
 
 
 ControlSubsystem::ControlSubsystem()
@@ -28,6 +29,54 @@ ControlSubsystem::~ControlSubsystem() {
 void ControlSubsystem::initialize() {
     // Initialization code
 
+    // hardware initialization
+    
+    GPIOManager& gpio = GPIOManager::getInstance();
+    std::map<int, std::string> pinMappings = {
+        // Inputs
+        {PHOTO_SENSOR_A_PIN, "analog_input"}, // Pin 3
+        {PHOTO_SENSOR_B_PIN, "analog_input"}, // Pin 2
+        {PHOTO_SENSOR_C_PIN, "analog_input"}, // Pin 1
+        {USER_BUTTON_PIN, "digital_input_pullup"}, // Pin 11
+
+        // Outputs
+        {MOTOR_A_PIN, "pwm_output"}, // Pin 20
+        {MOTOR_B_PIN, "pwm_output"}, // Pin 19
+        {AUDIO_PIN, "pwm_output"},    // Pin 23
+        {LCD_DATA_PIN, "digital_output"}, // Pin 22
+        {LCD_CLK_PIN, "digital_output"}    // Pin 21
+
+    };
+
+    gpio.initializePins(pinMappings);
+
+    // Initialize PhotoSensors
+    sensorLeft = new PhotoSensor(PHOTO_SENSOR_A_PIN);
+    sensorCenter = new PhotoSensor(PHOTO_SENSOR_B_PIN);
+    sensorRight = new PhotoSensor(PHOTO_SENSOR_C_PIN);
+
+    sensorLeft->initialize();
+    sensorCenter->initialize();
+    sensorRight->initialize();
+
+    // Initialize LineDetector with the three sensors
+    lineDetector = new LineDetector(*sensorLeft, *sensorCenter, *sensorRight);
+
+    // Initialize Motors
+    motorA = new Motor(MOTOR_A_PIN);
+    motorB = new Motor(MOTOR_B_PIN);
+
+    motorA->initialize();
+    motorB->initialize();
+
+    // Set motor parameters for line following
+    motorA->setMinimumStartPWM(20); // Example value
+    motorB->setMinimumStartPWM(20); // Example value
+
+    // Initialize PID Controller
+    pidController = new PIDController(2.0f, 0.1f, 0.5f);
+    pidController->setOutputLimits(-40.0f, 40.0f); // TODO: Tune these limits
+
     // Create states
     idleState = new IdleState();
     forwardState = new ForwardState();
@@ -41,10 +90,11 @@ void ControlSubsystem::initialize() {
     // Set initial state to idle
     fsm->transitionTo(idleState);
 
-    // motorA = new Motor(MOTOR_A_PIN);
-    // motorB = new Motor(MOTOR_B_PIN);
-    // lineDetector = new LineDetector(LINE_SENSOR_LEFT_PIN, LINE_SENSOR_RIGHT_PIN);
-    // pidController = new PIDController(1.0, 0.0, 0.0); // Default PID gains
+    Serial.println("ControlSubsystem hardware initialized.");
+    Serial.println("FSM initialized to IdleState.");
+    Serial.println("Motors: A(Pin 20), B(Pin 19)");
+    Serial.println("PhotoSensors: Left(Pin 3), Center(Pin 2), Right(Pin 1)");
+    
 }
 
 void ControlSubsystem::update() {

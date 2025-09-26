@@ -30,6 +30,9 @@ class ControlSubsystem {
         // Hardware components
         Motor* motorA;
         Motor* motorB;
+        PhotoSensor* sensorLeft;
+        PhotoSensor* sensorCenter;
+        PhotoSensor* sensorRight;
         LineDetector* lineDetector;
         PIDController* pidController;
 
