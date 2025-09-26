@@ -1,37 +1,37 @@
 #include <Arduino.h>
 #include "ControlSubsystem.hpp"
+#include "UserInterface.hpp"
 
 // Global pointer to control subsystem
-ControlSubsystem* buzzcar = nullptr;
-
+ControlSubsystem* buzzcar;
+UserInterface* ui;
 
 void setup() {
-  // put your setup code here, to run once:
-
-  // Frequency of the CPU: Setting to 160MHz
-  // Note: This setting is specific to certain boards like ESP32
-  setCpuFrequencyMhz(160);
-
-  // Initialize serial monitor for debugging
-  Serial.begin(9600);
-
-  // Check if CPU frequency is set correctly
-  Serial.print("CPU Frequency set to: ");
-  Serial.print(getCpuFrequencyMhz());
-  Serial.println(" MHz");
+  Serial.begin(115200);
+  Serial.println("BuzzCar Control System Starting...");
 
   // Initialize Control Subsystem
   buzzcar = new ControlSubsystem();
-  buzzcar->initialize();
-  Serial.println("Control Subsystem Initialized");
+  ui = new UserInterface(11); // User button pin
 
+  buzzcar->initialize();
+  ui->initialize();
+  Serial.println("System ready! Press button to start.");
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-  if (buzzcar != nullptr) {
+  // Update user interface
+  if (ui->wasButtonPressed()) {
+    ui->toggleSystem();
+    Serial.print("System ON");
+  }
+
+  // Update control system if enabled
+  if (ui->isSystemOn()) {
     buzzcar->update();
   }
+
+  delay(50); // Loop delay
+  
 }
 
-// put function definitions here:
