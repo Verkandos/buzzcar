@@ -1,6 +1,7 @@
 #include "Speaker.h"
 #include <driver/ledc.h>   // ledc api
 #include "GPIOManager.hpp"
+#include "ControlConfig.hpp"
 
 
 struct Note { uint16_t freq; uint16_t dur_ms; };
@@ -56,11 +57,12 @@ static void playFreq(uint16_t freq) {
 // sets up speaker
 void speakerBegin(uint8_t audioPin, uint8_t ledcChannel, uint8_t resolutionBits, uint8_t dutyPercent)
 {
+  ControlConfig& config = ControlConfig::getInstance();
   s_audioPin  = audioPin; // would need to be set to 23
 
   // Use GPIOManager to configure pin as output
   GPIOManager& gpio = GPIOManager::getInstance();
-  gpio.configurePWMPin(s_audioPin, 1000, resolutionBits); // Let GPIOManager handle PWM setup
+  gpio.configurePWMPin(s_audioPin, config.feedback.audioFrequency, resolutionBits); // Let GPIOManager handle PWM setup
 
 
   // s_channel   = static_cast<ledc_channel_t>(ledcChannel);  // 0..7

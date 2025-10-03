@@ -3,6 +3,7 @@
 #include "ControlSubsystem.hpp"
 #include "Event.hpp"
 #include "FSM.hpp"
+#include "ControlConfig.hpp"
 
 TurnRightState::TurnRightState() : baseSpeed(50), turnSpeed(30), pidController(1.5f, 0.05f, 0.8f) {
     // Initialize with conservative turn speeds and PID gains
@@ -10,11 +11,12 @@ TurnRightState::TurnRightState() : baseSpeed(50), turnSpeed(30), pidController(1
 }
 
 void TurnRightState::onEntry(ControlSubsystem* context) {
+    ControlConfig& config = ControlConfig::getInstance();
     // Initialize with conservative turn speeds and PID gains
     pidController.reset();
 
     // Start turning right: left motor forward, right motor stopped
-    context->getMotorA()->setSpeed(turnSpeed); // Left motor at turn speed
+    context->getMotorA()->setSpeed(config.motor.turnSpeed); // Left motor at turn speed
     context->getMotorB()->setSpeed(0); // Right motor stopped
 
 }

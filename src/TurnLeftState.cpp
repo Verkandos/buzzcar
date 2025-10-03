@@ -3,6 +3,7 @@
 #include "ControlSubsystem.hpp"
 #include "Event.hpp"
 #include "FSM.hpp"
+#include "ControlConfig.hpp"
 
 TurnLeftState::TurnLeftState() : baseSpeed(50), turnSpeed(30), pidController(1.5f, 0.05f, 0.8f) {
     // Initialize with conservative turn speeds and PID gains
@@ -10,12 +11,13 @@ TurnLeftState::TurnLeftState() : baseSpeed(50), turnSpeed(30), pidController(1.5
 }
 
 void TurnLeftState::onEntry(ControlSubsystem* context) {
+    ControlConfig& config = ControlConfig::getInstance();
     // Reset PID controller for the turn
     pidController.reset();
 
     // Start turning left by reducing left motor speed
     context->getMotorA()->setSpeed(0); // Left motor slower
-    context->getMotorB()->setSpeed(turnSpeed); // Right motor at turn speed
+    context->getMotorB()->setSpeed(config.motor.turnSpeed); // Right motor at turn speed
 }
 void TurnLeftState::onUpdate(ControlSubsystem* context) {
     // Check line state to see if turn is complete

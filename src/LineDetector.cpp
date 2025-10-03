@@ -1,4 +1,5 @@
 #include "LineDetector.hpp"
+#include "ControlConfig.hpp"
 #include <Arduino.h>
 
 LineDetector::LineDetector(PhotoSensor& left, PhotoSensor& center, PhotoSensor& right,
@@ -9,11 +10,15 @@ LineDetector::LineDetector(PhotoSensor& left, PhotoSensor& center, PhotoSensor& 
 }
 
 bool LineDetector::isSensorOnWhite(PhotoSensor& sensor) const {
-    return sensor.readRaw() > whiteThreshold;
+    ControlConfig& config = ControlConfig::getInstance();
+    int reading = sensor.readRaw();
+    return reading > config.sensors.whiteThreshold;
 }
 
 bool LineDetector::isSensorOnBlack(PhotoSensor& sensor) const {
-    return sensor.readRaw() < blackThreshold;
+    ControlConfig& config = ControlConfig::getInstance();
+    int reading = sensor.readRaw();
+    return reading < config.sensors.blackThreshold;
 }
 
 LineState LineDetector::detectLineState() {

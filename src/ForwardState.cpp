@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include "ForwardState.hpp"
 #include "ControlSubsystem.hpp"
+#include "ControlConfig.hpp"
 
 ForwardState::ForwardState() : baseSpeed(50), pidController(2.0f, 0.1f, 1.0f) {
     // Initialize with 50% base speed and reasonable PID gains
@@ -8,12 +9,13 @@ ForwardState::ForwardState() : baseSpeed(50), pidController(2.0f, 0.1f, 1.0f) {
 }
 
 void ForwardState::onEntry(ControlSubsystem* context) {
+    ControlConfig& config = ControlConfig::getInstance();
     // Reset PID controller for new line following session
     pidController.reset();
 
     // Start both motors at base speed
-    context->getMotorA()->setSpeed(baseSpeed); // Left motor
-    context->getMotorB()->setSpeed(baseSpeed); // Right motor
+    context->getMotorA()->setSpeed(config.motor.baseSpeed); // Left motor
+    context->getMotorB()->setSpeed(config.motor.baseSpeed); // Right motor
 
 }
 

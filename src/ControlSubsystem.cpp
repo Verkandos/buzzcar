@@ -9,6 +9,7 @@
 #include "GPIOManager.hpp"
 #include "Speaker.h"
 #include "Screen.h"
+#include "ControlConfig.hpp"
 
 /**
  * @brief Constructs a new ControlSubsystem instance
@@ -64,6 +65,8 @@ ControlSubsystem::~ControlSubsystem() {
  */
 void ControlSubsystem::initialize() {
     // Initialization code
+    ControlConfig& config = ControlConfig::getInstance();
+
 
     // hardware initialization
     
@@ -96,7 +99,7 @@ void ControlSubsystem::initialize() {
     sensorRight->initialize();
 
     // Initialize LineDetector with the three sensors
-    lineDetector = new LineDetector(*sensorLeft, *sensorCenter, *sensorRight);
+    lineDetector = new LineDetector(*sensorLeft, *sensorCenter, *sensorRight, config.sensors.blackThreshold,config.sensors.whiteThreshold);
 
     // Initialize Motors
     motorA = new Motor(MOTOR_A_PIN);
@@ -106,19 +109,23 @@ void ControlSubsystem::initialize() {
     motorB->initialize();
 
     // Set motor parameters for line following
-    motorA->setMinimumStartPWM(20); // Example value
-    motorB->setMinimumStartPWM(20); // Example value
+    motorA->setMinimumStartPWM(config.motor.minStartPWM);
+    motorB->setMinimumStartPWM(config.motor.minStartPWM);
+
+    motorA->setPWMRange(config.motor.minStartPWM, config.motor.maxPWM);
+    motorB->setPWMRange(config.motor.minStartPWM, config.motor.maxPWM);
 
     // Initialize Screen and Speaker
     screenBegin(LCD_DATA_PIN, LCD_CLK_PIN);
-    speakerBegin(AUDIO_PIN, 2, 10, 50);
+    speakerBegin(AUDIO_PIN, 2, 10, config.feedback.audioVolume); // Use config volume
 
     // Show initial state on screen
     showDirection(0); // Show STOP initially
 
     // Initialize PID Controller
-    pidController = new PIDController(2.0f, 0.1f, 0.5f);
-    pidController->setOutputLimits(-40.0f, 40.0f); // TODO: Tune these limits
+    pidController = new PIDController(config.pid.Kp, config.pid.Ki, config.pid.Kd);
+    pidController->setOutputLimits(config.pid.outputMin, config.pid.outputMax); // TODO: Tune these limits
+    pidController->setIntegralLimit(config.pid.integralLimit);
 
     // Create states
     idleState = new IdleState();

@@ -8,6 +8,7 @@
 #include "StopState.hpp"
 #include "Speaker.h"
 #include "Screen.h"
+#include "ControlConfig.hpp"
 
 /**
  * @brief Constructs a new FSM object
@@ -125,6 +126,7 @@ void FSM::handleEvent(const Event& event) {
  * @param newState Pointer to the new state to transition to (takes ownership)
  */
 void FSM::transitionTo(State* newState) {
+    ControlConfig& config = ControlConfig::getInstance();
     // Exit current state
     if (currentState) {
         Serial.print("FSM: Exiting ");
@@ -138,19 +140,21 @@ void FSM::transitionTo(State* newState) {
     currentState->onEntry(context);
 
     // Provide audio/visual feedback for new state
-    const char* stateName = getCurrentStateName();
-    int direction = -1;
+    if (config.feedback.enableAudio || config.feedback.enableDisplay) {
+        const char* stateName = getCurrentStateName();
+        int direction = -1;
 
-    if (strcmp(stateName, "StopState") == 0) direction = 0; // STOP
-    else if (strcmp(stateName, "ForwardState") == 0) direction = 1; // FORWARD
-    else if (strcmp(stateName, "TurnLeftState") == 0) direction = 2; // LEFT
-    else if (strcmp(stateName, "TurnRightState") == 0) direction = 3; // RIGHT
+        if (strcmp(stateName, "StopState") == 0) direction = 0; // STOP
+        else if (strcmp(stateName, "ForwardState") == 0) direction = 1; // FORWARD
+        else if (strcmp(stateName, "TurnLeftState") == 0) direction = 2; // LEFT
+        else if (strcmp(stateName, "TurnRightState") == 0) direction = 3; // RIGHT
 
-    if (direction >= 0) {
-        startMelodyForDirection(direction); // Audio feedback
-        showDirection(direction);      // Visual feedback
-        Serial.print("Feedback: Playing audio/visual for direction ");
-        Serial.println(direction);
+        if (direction >= 0) {
+            startMelodyForDirection(direction); // Audio feedback
+            showDirection(direction);      // Visual feedback
+            Serial.print("Feedback: Playing audio/visual for direction ");
+            Serial.println(direction);
+        }
     }
 }
 

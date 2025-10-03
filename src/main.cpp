@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include "ControlSubsystem.hpp"
 #include "UserInterface.hpp"
+#include "ControlConfig.hpp"
 
 // Global pointer to control subsystem
 ControlSubsystem* buzzcar;
@@ -8,6 +9,12 @@ UserInterface* ui;
 
 void setup() {
   Serial.begin(115200);
+
+  // Get config and turn parameters
+  ControlConfig& config = ControlConfig::getInstance();
+
+  config.printConfig();
+  
   Serial.println("BuzzCar Control System Starting...");
 
   // Initialize Control Subsystem
@@ -20,6 +27,7 @@ void setup() {
 }
 
 void loop() {
+  ControlConfig& config = ControlConfig::getInstance();
   // Update user interface
   if (ui->wasButtonPressed()) {
     ui->toggleSystem();
@@ -31,7 +39,7 @@ void loop() {
     buzzcar->update();
   }
 
-  delay(50); // Loop delay
+  delay(config.timing.mainLoopDelay); // Loop delay
   
 }
 

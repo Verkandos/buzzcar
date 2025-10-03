@@ -1,6 +1,7 @@
 #include "Arduino.h"
 #include "Motor.hpp"
 #include "GPIOManager.hpp"
+#include "ControlConfig.hpp"
 
 Motor::Motor() 
     : pinPWM(-1), currentSpeedPercent(0), minPWM(0), maxPWM(255), minimumStartPWM(50) {
@@ -14,11 +15,11 @@ Motor::Motor(int pin)
 
 void Motor::initialize() {
     if (pinPWM != -1) {
-        
+        ControlConfig& config = ControlConfig::getInstance();
         GPIOManager& gpio = GPIOManager::getInstance();
 
         // Configure pin as PWM output with 10kHz
-        gpio.configurePWMPin(pinPWM, 10000, 8);
+        gpio.configurePWMPin(pinPWM, config.motor.motorFrequency, 8);
         
         // Start with motor stopped
         applyPWM(0);
@@ -31,7 +32,8 @@ void Motor::initialize(int pin) {
 }
 
 void Motor::activate() {
-    setSpeed(50); // Start at 50% speed when activated
+    ControlConfig& config = ControlConfig::getInstance();
+    setSpeed(config.motor.baseSpeed);
 }
 
 void Motor::setSpeed(int speedPercent) {

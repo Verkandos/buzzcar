@@ -2,6 +2,7 @@
 #include "UserInterface.hpp"
 #include "GPIOManager.hpp"
 
+
 UserInterface::UserInterface() : pinButton(USER_BUTTON_PIN), turnedOn(false) {}
 
 UserInterface::UserInterface(int buttonPin) : pinButton(buttonPin), turnedOn(false) {}
