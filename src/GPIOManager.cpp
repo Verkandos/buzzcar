@@ -5,6 +5,7 @@
     #include "esp32-hal-ledc.h" // For PWM on ESP32
     #include "driver/ledc.h"    // For LEDC driver
 #endif
+#include <Wire.h>
 /**
  * @brief Private constructor for singleton pattern
  * 
@@ -188,4 +189,22 @@ int GPIOManager::readAnalog(int pin) {
  */
 bool GPIOManager::readDigital(int pin) {
     return digitalRead(pin) == HIGH;
+}
+
+
+void GPIOManager::setFrequency(int pin, int frequency) {
+    #ifdef ESP32
+        if (pwmChannels.find(pin) != pwmChannels.end()) {
+            int channel = pwmChannels[pin];
+            ledc_set_freq(LEDC_LOW_SPEED_MODE, (ledc_timer_t)channel, frequency);
+        }
+    #endif
+}
+
+void GPIOManager::configureI2C(int sdaPin, int sclPin, uint32_t frequency) {
+    #ifdef ESP32
+        i2cSDAPin = sdaPin;
+        i2cSCLPin = sclPin;
+        Wire.begin(sdaPin, sclPin, frequency);
+    #endif
 }
