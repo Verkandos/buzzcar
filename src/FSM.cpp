@@ -87,21 +87,43 @@ void FSM::handleEvent(const Event& event) {
             break;
         
         case EventType::START_MOVEMENT:
-            if (getCurrentStateName() == "ForwardState") {
+            Serial.printf("FSM: Handling START_MOVEMENT event, current state: %s\n", getCurrentStateName());
+            if (strcmp(getCurrentStateName(), "IdleState") == 0) {
+                Serial.println("FSM: Transitioning from IdleState to ForwardState");
                 transitionTo(new ForwardState());
+            } else {
+                Serial.println("FSM: START_MOVEMENT ignored - not in IdleState");
+            }
+            break;
+
+        case EventType::TURN_LEFT:
+            Serial.printf("FSM: Handling TURN_LEFT event, current state: %s\n", getCurrentStateName());
+            if (strcmp(getCurrentStateName(), "ForwardState") == 0) {
+                Serial.println("FSM: Transitioning from ForwardState to TurnLeftState");
+                transitionTo(new TurnLeftState());
+            } else {
+                Serial.println("FSM: TURN_LEFT ignored - not in ForwardState");
             }
             break;
 
         case EventType::TURN_RIGHT:
-            if (getCurrentStateName() == "ForwardState") {
+            Serial.printf("FSM: Handling TURN_RIGHT event, current state: %s\n", getCurrentStateName());
+            if (strcmp(getCurrentStateName(), "ForwardState") == 0) {
+                Serial.println("FSM: Transitioning from ForwardState to TurnRightState");
                 transitionTo(new TurnRightState());
+            } else {
+                Serial.println("FSM: TURN_RIGHT ignored - not in ForwardState");
             }
             break;
             
         case EventType::FORWARD:
-            if (getCurrentStateName() == "TurnLeftState" || 
-                getCurrentStateName() == "TurnRightState") {
+            Serial.printf("FSM: Handling FORWARD event, current state: %s\n", getCurrentStateName());
+            if (strcmp(getCurrentStateName(), "TurnLeftState") == 0 || 
+                strcmp(getCurrentStateName(), "TurnRightState") == 0) {
+                Serial.println("FSM: Transitioning from Turn state to ForwardState");
                 transitionTo(new ForwardState());
+            } else {
+                Serial.println("FSM: FORWARD ignored - not in Turn state");
             }
             break;
         
@@ -225,7 +247,7 @@ const char* FSM::getCurrentStateName() const {
     if (!currentState) {
         return "NULL";
     }
-    return currentState->getName().c_str();
+    return currentState->getName();
 }
 
 /**

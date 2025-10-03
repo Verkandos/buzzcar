@@ -13,6 +13,8 @@ void screenBegin(uint8_t i2cSDA, uint8_t i2cSCL) {
   GPIOManager& gpio = GPIOManager::getInstance();
   gpio.configureI2C(i2cSDA, i2cSCL, 400000); // 400kHz I2C
 
+  Serial.println("Screen Begin");
+
 
   // Wire.begin(i2cSDA, i2cSCL);
   u8g2.setBusClock(400000);
@@ -23,6 +25,7 @@ void screenBegin(uint8_t i2cSDA, uint8_t i2cSCL) {
 //handles the monitor display based on direction
 // 0 = STOP 1 = FORWARD 2 = LEFT 3 = RIGHT
 void showDirection(int direction) {
+  Serial.println("Screen.cpp showing direction....");
   u8g2.clearBuffer();
   u8g2.setFont(u8g2_font_6x12_tf);
   u8g2.drawStr(0, 12, "TEST:");

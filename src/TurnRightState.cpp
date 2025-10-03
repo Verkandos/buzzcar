@@ -5,7 +5,7 @@
 #include "FSM.hpp"
 #include "ControlConfig.hpp"
 
-TurnRightState::TurnRightState() : baseSpeed(50), turnSpeed(30), pidController(1.5f, 0.05f, 0.8f) {
+TurnRightState::TurnRightState() : State("TurnRightState"), baseSpeed(50), turnSpeed(30), pidController(1.5f, 0.05f, 0.8f) {
     // Initialize with conservative turn speeds and PID gains
     pidController.setOutputLimits(-15.0f, 15.0f); // smaller corrections during turns
 }

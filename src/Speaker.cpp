@@ -57,6 +57,7 @@ static void playFreq(uint16_t freq) {
 // sets up speaker
 void speakerBegin(uint8_t audioPin, uint8_t ledcChannel, uint8_t resolutionBits, uint8_t dutyPercent)
 {
+  Serial.println("Speaker Begin");
   ControlConfig& config = ControlConfig::getInstance();
   s_audioPin  = audioPin; // would need to be set to 23
 

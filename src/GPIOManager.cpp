@@ -103,6 +103,7 @@ void GPIOManager::configurePWMPin(int pin, int frequency, int resolution) {
         else if (pin == 20) channel = 1; // Motor A - Channel 1  
         else if (pin == 23) channel = 2; // Audio - Channel 2
         else channel = 3; // Default
+
         
         // Configure LEDC timer
         ledc_timer_config_t timer_config = {
@@ -144,6 +145,7 @@ void GPIOManager::configurePWMPin(int pin, int frequency, int resolution) {
  */
 void GPIOManager::writePWM(int pin, int duty) {
     duty = constrain(duty, 0, 255);
+    // Serial.printf("GPIOManager::writePWM pin=%d duty=%d\n", pin, duty); // Comment out for less spam
 
     #ifdef ESP32
         if (pwmChannels.find(pin) != pwmChannels.end()) {
@@ -203,6 +205,7 @@ void GPIOManager::setFrequency(int pin, int frequency) {
 
 void GPIOManager::configureI2C(int sdaPin, int sclPin, uint32_t frequency) {
     #ifdef ESP32
+        Serial.printf("Configuring I2C on SDA=%d SCL=%d Freq=%d\n", sdaPin, sclPin, frequency);
         i2cSDAPin = sdaPin;
         i2cSCLPin = sclPin;
         Wire.begin(sdaPin, sclPin, frequency);

@@ -4,8 +4,9 @@
 #include "Event.hpp"
 #include "FSM.hpp"
 #include "ControlConfig.hpp"
+#include "Screen.h"
 
-TurnLeftState::TurnLeftState() : baseSpeed(50), turnSpeed(30), pidController(1.5f, 0.05f, 0.8f) {
+TurnLeftState::TurnLeftState() : State("TurnLeftState"), baseSpeed(50), turnSpeed(30), pidController(1.5f, 0.05f, 0.8f) {
     // Initialize with conservative turn speeds and PID gains
     pidController.setOutputLimits(-15.0f, 15.0f); // smaller corrections during turns
 }

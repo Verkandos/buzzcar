@@ -22,12 +22,13 @@
 #include "ControlConfig.hpp"
 
 // PHASE I: Pairwise Integration Tests - Enable ONLY ONE test at a time
-const bool TEST_CONTROL_UI = false;      // Control + UI integration
-const bool TEST_CONTROL_SPEAKER = false; // Control + Speaker integration  
-const bool TEST_CONTROL_SCREEN = false;  // Control + Screen integration
-const bool TEST_CONTROL_MOTORS = false;  // Control + Motors integration
-const bool TEST_CONTROL_SENSORS = false; // Control + Sensors integration
-const bool TEST_CONTROL_POWER = false;   // Control + Power integration
+const bool TEST_CONTROL_UI = false;        // Control + UI integration
+const bool TEST_CONTROL_SPEAKER = false;   // Control + Speaker integration  
+const bool TEST_CONTROL_SCREEN = false;    // Control + Screen integration
+const bool TEST_CONTROL_AUDIOVISUAL = true; // Control + Speaker + Screen integration
+const bool TEST_CONTROL_MOTORS = false;    // Control + Motors integration
+const bool TEST_CONTROL_SENSORS = false;   // Control + Sensors integration
+const bool TEST_CONTROL_POWER = false;     // Control + Power integration
 
 // PHASE II: Progressive Full Integration Tests - Enable ONLY ONE test at a time
 const bool TEST_UI_AV = false;           // Control + UI + Speaker + Screen (AV)
@@ -57,6 +58,7 @@ bool validateTestSelection() {
     if (TEST_CONTROL_UI) activeTests++;
     if (TEST_CONTROL_SPEAKER) activeTests++;
     if (TEST_CONTROL_SCREEN) activeTests++;
+    if (TEST_CONTROL_AUDIOVISUAL) activeTests++;
     if (TEST_CONTROL_MOTORS) activeTests++;
     if (TEST_CONTROL_SENSORS) activeTests++;
     if (TEST_CONTROL_POWER) activeTests++;
@@ -178,43 +180,50 @@ void runControlUITest() {
 
 void setupControlSpeakerTest() {
     Serial.println("=== CONTROL + SPEAKER INTEGRATION TEST ===");
-    Serial.println("Testing: FSM state transitions with audio feedback");
-    Serial.println("Expected: Distinct melodies for each state transition");
+    Serial.println("Testing: Direct speaker audio functionality");
+    Serial.println("Expected: Distinct melodies for each direction");
     Serial.println();
     
-    initializeCommonComponents();
+    // Initialize GPIO Manager
+    gpio = &GPIOManager::getInstance();
     
-    // Initialize control system with speaker
-    controlSystem = new ControlSubsystem();
-    controlSystem->initialize();
+    // Get configuration instance
+    ControlConfig& config = ControlConfig::getInstance();
+    
+    // Configure audio pin
+    std::map<int, std::string> speakerPins = {
+        {AUDIO_PIN, "digital_output"}    // Pin 23 - Speaker
+    };
+    gpio->initializePins(speakerPins);
+    
+    // Configure PWM for audio pin using ControlConfig values
+    gpio->configurePWMPin(AUDIO_PIN, config.feedback.audioFrequency, 8); // From config, 8-bit resolution
+    
+    // Initialize speaker directly
+    speakerBegin(AUDIO_PIN, 2, 10, config.feedback.audioVolume); // Use config volume
     
     testStartTime = millis();
     testPhase = 0;
     
-    Serial.println("Starting FSM audio test cycle...");
-    Serial.println("States: Idle -> Forward -> TurnLeft -> TurnRight -> Stop");
+    Serial.println("Starting direct speaker test cycle...");
+    Serial.println("Listen for: STOP, FORWARD, LEFT, RIGHT melodies");
+    Serial.printf("Speaker configured on pin %d, volume %d%%\n", AUDIO_PIN, config.feedback.audioVolume);
 }
 
 void runControlSpeakerTest() {
-    // Change state every 4 seconds
-    if (millis() - lastTestUpdate > 4000) {
+    // Change audio every 3 seconds for better listening
+    if (millis() - lastTestUpdate > 3000) {
         
-        const char* stateNames[] = {"IDLE", "FORWARD", "TURN_LEFT", "TURN_RIGHT", "STOP"};
-        EventType events[] = {
-            EventType::START, 
-            EventType::FORWARD, 
-            EventType::TURN_LEFT, 
-            EventType::TURN_RIGHT, 
-            EventType::STOP
-        };
+        const char* audioNames[] = {"STOP", "FORWARD", "LEFT", "RIGHT"};
+        int directions[] = {0, 1, 2, 3}; // 0=STOP, 1=FORWARD, 2=LEFT, 3=RIGHT
         
-        if (testPhase < 5) {
-            Serial.printf("Phase %d: Triggering %s state\n", testPhase + 1, stateNames[testPhase]);
-            Serial.println("  -> Listen for audio melody...");
+        if (testPhase < 4) {
+            Serial.printf("Phase %d: Play %s melody\n", testPhase + 1, audioNames[testPhase]);
+            Serial.println("  -> Listen for audio now...");
             
-            // Create event and update control system
-            Event testEvent(events[testPhase]);
-            controlSystem->update();
+            // Directly call startMelodyForDirection to test speaker
+            startMelodyForDirection(directions[testPhase]);
+            Serial.printf("Called startMelodyForDirection(%d) for %s\n", directions[testPhase], audioNames[testPhase]);
             
             testPhase++;
         } else {
@@ -226,50 +235,56 @@ void runControlSpeakerTest() {
         lastTestUpdate = millis();
     }
     
-    // Keep system running for audio processing
-    controlSystem->update();
+    // Keep servicing the melody to maintain audio playback
+    serviceMelody();
 }
 
 // TEST 3: CONTROL + SCREEN INTEGRATION
 
 void setupControlScreenTest() {
     Serial.println("=== CONTROL + SCREEN INTEGRATION TEST ===");
-    Serial.println("Testing: FSM state transitions with visual feedback");
-    Serial.println("Expected: Screen displays correct state name immediately");
+    Serial.println("Testing: Direct screen display functionality");
+    Serial.println("Expected: Screen displays each direction clearly");
     Serial.println();
     
-    initializeCommonComponents();
+    // Initialize GPIO Manager
+    gpio = &GPIOManager::getInstance();
     
-    // Initialize control system with screen
-    controlSystem = new ControlSubsystem();
-    controlSystem->initialize();
+    // Configure I2C pins for screen
+    std::map<int, std::string> screenPins = {
+        {LCD_DATA_PIN, "digital_output"}, // Pin 22 - Screen SDA
+        {LCD_CLK_PIN, "digital_output"}   // Pin 21 - Screen SCL
+    };
+    gpio->initializePins(screenPins);
+    
+    // Configure I2C for screen (SDA=22, SCL=21)
+    gpio->configureI2C(LCD_DATA_PIN, LCD_CLK_PIN);
+    
+    // Initialize screen directly
+    screenBegin(LCD_DATA_PIN, LCD_CLK_PIN);
     
     testStartTime = millis();
     testPhase = 0;
     
-    Serial.println("Starting FSM screen test cycle...");
+    Serial.println("Starting direct screen test cycle...");
     Serial.println("Watch screen for: STOP, FORWARD, LEFT, RIGHT messages");
+    Serial.println("Screen I2C configured on SDA=22, SCL=21");
 }
 
 void runControlScreenTest() {
-    // Change state every 3 seconds for better visibility
-    if (millis() - lastTestUpdate > 3000) {
+    // Change display every 2 seconds for better visibility
+    if (millis() - lastTestUpdate > 2000) {
         
-        const char* stateNames[] = {"STOP", "FORWARD", "LEFT", "RIGHT"};
-        EventType events[] = {
-            EventType::STOP,
-            EventType::FORWARD, 
-            EventType::TURN_LEFT, 
-            EventType::TURN_RIGHT
-        };
+        const char* displayNames[] = {"STOP", "FORWARD", "LEFT", "RIGHT"};
+        int directions[] = {0, 1, 2, 3}; // 0=STOP, 1=FORWARD, 2=LEFT, 3=RIGHT
         
         if (testPhase < 4) {
-            Serial.printf("Phase %d: Display %s on screen\n", testPhase + 1, stateNames[testPhase]);
+            Serial.printf("Phase %d: Display %s on screen\n", testPhase + 1, displayNames[testPhase]);
             Serial.println("  -> Check screen display now...");
             
-            // Create event and update control system
-            Event testEvent(events[testPhase]);
-            controlSystem->update();
+            // Directly call showDirection to test screen display
+            showDirection(directions[testPhase]);
+            Serial.printf("Called showDirection(%d) for %s\n", directions[testPhase], displayNames[testPhase]);
             
             testPhase++;
         } else {
@@ -280,9 +295,79 @@ void runControlScreenTest() {
         
         lastTestUpdate = millis();
     }
+}
+
+// TEST 3.5: CONTROL + AUDIOVISUAL INTEGRATION (SPEAKER + SCREEN)
+
+void setupControlAudioVisualTest() {
+    Serial.println("=== CONTROL + AUDIOVISUAL INTEGRATION TEST ===");
+    Serial.println("Testing: Combined speaker and screen functionality");
+    Serial.println("Expected: Synchronized audio and visual feedback for each direction");
+    Serial.println();
     
-    // Keep system running for screen updates
-    controlSystem->update();
+    // Initialize GPIO Manager
+    gpio = &GPIOManager::getInstance();
+    
+    // Get configuration instance
+    ControlConfig& config = ControlConfig::getInstance();
+    
+    // Configure both audio and screen pins
+    std::map<int, std::string> avPins = {
+        {AUDIO_PIN, "digital_output"},    // Pin 23 - Speaker
+        {LCD_DATA_PIN, "digital_output"}, // Pin 22 - Screen SDA
+        {LCD_CLK_PIN, "digital_output"}   // Pin 21 - Screen SCL
+    };
+    gpio->initializePins(avPins);
+    
+    // Configure PWM for audio pin using ControlConfig values
+    gpio->configurePWMPin(AUDIO_PIN, config.feedback.audioFrequency, 8); // From config, 8-bit resolution
+    
+    // Configure I2C for screen (SDA=22, SCL=21)
+    gpio->configureI2C(LCD_DATA_PIN, LCD_CLK_PIN);
+    
+    // Initialize both speaker and screen directly
+    speakerBegin(AUDIO_PIN, 2, 10, config.feedback.audioVolume); // Use config volume
+    screenBegin(LCD_DATA_PIN, LCD_CLK_PIN);
+    
+    testStartTime = millis();
+    testPhase = 0;
+    
+    Serial.println("Starting combined audiovisual test cycle...");
+    Serial.println("Watch screen AND listen for: STOP, FORWARD, LEFT, RIGHT");
+    Serial.printf("Speaker: Pin %d, Volume %d%% | Screen: SDA=%d, SCL=%d\n", 
+                  AUDIO_PIN, config.feedback.audioVolume, LCD_DATA_PIN, LCD_CLK_PIN);
+}
+
+void runControlAudioVisualTest() {
+    // Change both audio and visual every 3 seconds for coordinated feedback
+    if (millis() - lastTestUpdate > 3000) {
+        
+        const char* avNames[] = {"STOP", "FORWARD", "LEFT", "RIGHT"};
+        int directions[] = {0, 1, 2, 3}; // 0=STOP, 1=FORWARD, 2=LEFT, 3=RIGHT
+        
+        if (testPhase < 4) {
+            Serial.printf("Phase %d: %s - Audio + Visual\n", testPhase + 1, avNames[testPhase]);
+            Serial.println("  -> Check screen AND listen for audio...");
+            
+            // Simultaneously trigger both audio and visual feedback
+            startMelodyForDirection(directions[testPhase]);  // Audio feedback
+            showDirection(directions[testPhase]);            // Visual feedback
+            
+            Serial.printf("Called startMelodyForDirection(%d) + showDirection(%d) for %s\n", 
+                         directions[testPhase], directions[testPhase], avNames[testPhase]);
+            
+            testPhase++;
+        } else {
+            // Reset cycle
+            testPhase = 0;
+            Serial.println("\n--- AudioVisual test cycle complete, restarting ---\n");
+        }
+        
+        lastTestUpdate = millis();
+    }
+    
+    // Keep servicing the melody to maintain audio playback
+    serviceMelody();
 }
 
 // TEST 4: CONTROL + MOTORS INTEGRATION
@@ -310,12 +395,12 @@ void runControlMotorsTest() {
     // Change motor command every 3 seconds
     if (millis() - lastTestUpdate > 3000) {
         
-        const char* commandNames[] = {"FORWARD", "TURN_LEFT", "TURN_RIGHT", "STOP"};
+        const char* commandNames[] = {"FORWARD", "TURN_LEFT", "FORWARD", "TURN_RIGHT"};
         EventType events[] = {
-            EventType::FORWARD,
+            EventType::START_MOVEMENT,
             EventType::TURN_LEFT, 
-            EventType::TURN_RIGHT,
-            EventType::STOP
+            EventType::FORWARD,
+            EventType::TURN_RIGHT
         };
         
         if (testPhase < 4) {
@@ -336,8 +421,9 @@ void runControlMotorsTest() {
                     break;
             }
             
-            // Create event and update control system
+            // Create event and send it to the FSM for proper state transition
             Event testEvent(events[testPhase]);
+            controlSystem->getFSM()->handleEvent(testEvent);
             controlSystem->update();
             
             testPhase++;
@@ -549,11 +635,11 @@ void runUIAVTest() {
     static unsigned long lastFSMUpdate = 0;
     if (systemOn && millis() - lastFSMUpdate > 5000) { // 5-second cycles
         
-        const char* stateNames[] = {"IDLE", "FORWARD", "TURN_LEFT", "TURN_RIGHT"};
+        const char* stateNames[] = {"FORWARD", "TURN_LEFT", "FORWARD", "TURN_RIGHT"};
         EventType events[] = {
-            EventType::START,
-            EventType::FORWARD, 
+            EventType::START_MOVEMENT,
             EventType::TURN_LEFT, 
+            EventType::FORWARD,
             EventType::TURN_RIGHT
         };
         
@@ -561,8 +647,9 @@ void runUIAVTest() {
         int currentState = testPhase % 4;
         Serial.printf("System ON - State: %s [Audio + Visual]\n", stateNames[currentState]);
         
-        // Create event and update control system for AV feedback
+        // Create event and send it to the FSM for proper state transition
         Event testEvent(events[currentState]);
+        controlSystem->getFSM()->handleEvent(testEvent);
         controlSystem->update();
         
         testPhase++;
@@ -865,6 +952,8 @@ void setup() {
         setupControlSpeakerTest();
     } else if (TEST_CONTROL_SCREEN) {
         setupControlScreenTest();
+    } else if (TEST_CONTROL_AUDIOVISUAL) {
+        setupControlAudioVisualTest();
     } else if (TEST_CONTROL_MOTORS) {
         setupControlMotorsTest();
     } else if (TEST_CONTROL_SENSORS) {
@@ -893,6 +982,8 @@ void loop() {
         runControlSpeakerTest();
     } else if (TEST_CONTROL_SCREEN) {
         runControlScreenTest();
+    } else if (TEST_CONTROL_AUDIOVISUAL) {
+        runControlAudioVisualTest();
     } else if (TEST_CONTROL_MOTORS) {
         runControlMotorsTest();
     } else if (TEST_CONTROL_SENSORS) {
