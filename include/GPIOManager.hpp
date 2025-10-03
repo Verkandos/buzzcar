@@ -15,7 +15,7 @@
 #define PHOTO_SENSOR_C_PIN 1 // [X]
 
 // User Button (Input Digital: GPIO Pin)
-#define USER_BUTTON_PIN 11 // [X]
+#define USER_BUTTON_PIN 10 // [X] - Testing pin 10 instead of 11
 
 // ===========OUTPUTS==========
 

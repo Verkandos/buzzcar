@@ -22,10 +22,10 @@
 #include "ControlConfig.hpp"
 
 // PHASE I: Pairwise Integration Tests - Enable ONLY ONE test at a time
-const bool TEST_CONTROL_UI = false;        // Control + UI integration
+const bool TEST_CONTROL_UI = true;        // Control + UI integration
 const bool TEST_CONTROL_SPEAKER = false;   // Control + Speaker integration  
 const bool TEST_CONTROL_SCREEN = false;    // Control + Screen integration
-const bool TEST_CONTROL_AUDIOVISUAL = true; // Control + Speaker + Screen integration
+const bool TEST_CONTROL_AUDIOVISUAL = false; // Control + Speaker + Screen integration
 const bool TEST_CONTROL_MOTORS = false;    // Control + Motors integration
 const bool TEST_CONTROL_SENSORS = false;   // Control + Sensors integration
 const bool TEST_CONTROL_POWER = false;     // Control + Power integration
@@ -134,20 +134,47 @@ void setupControlUITest() {
     Serial.println("Expected: Button press toggles system state reliably");
     Serial.println();
     
-    initializeCommonComponents();
+    // Initialize ONLY what's needed for button testing
+    gpio = &GPIOManager::getInstance();
+    Serial.println("GPIO Manager initialized");
     
-    // Initialize UserInterface
+    // Configure only the button pin
+    std::map<int, std::string> buttonPin = {
+        {USER_BUTTON_PIN, "digital_input_pullup"} // Pin 11 - User button
+    };
+    gpio->initializePins(buttonPin);
+    
+    Serial.printf("Button configured on pin %d\n", USER_BUTTON_PIN);
+    
+    // Initialize UserInterface (skip initialize to avoid overriding our pin config)
     ui = new UserInterface();
-    ui->initialize();
+    // ui->initialize(); // Skip this - we already configured the pin correctly above
     
     testStartTime = millis();
     Serial.println("Press the user button to toggle system on/off...");
     Serial.println("System currently: OFF");
+    Serial.println("DEBUG: UI test setup complete, button monitoring active");
 }
 
 void runControlUITest() {
     // Check for button press every 50ms
     if (millis() - lastTestUpdate > 50) {
+        
+        // SIMPLE TEST: Just read the raw button state directly
+        static unsigned long lastRawDebug = 0;
+        if (millis() - lastRawDebug > 1000) { // Debug every 1 second
+            // Read button state directly from GPIO
+            bool rawButtonState = gpio->readDigital(USER_BUTTON_PIN);
+            Serial.printf("RAW GPIO READ: Pin %d = %s\n", USER_BUTTON_PIN, rawButtonState ? "HIGH" : "LOW");
+            lastRawDebug = millis();
+        }
+        
+        // Debug: Show that we're checking the button
+        static unsigned long lastCheckDebug = 0;
+        if (millis() - lastCheckDebug > 5000) { // Debug every 5 seconds
+            Serial.println("DEBUG: Try pressing/releasing the button now...");
+            lastCheckDebug = millis();
+        }
         
         // Check if button was pressed (with debouncing)
         if (ui->wasButtonPressed()) {
@@ -155,7 +182,7 @@ void runControlUITest() {
             systemOn = !systemOn;
             ui->toggleSystem();
             
-            Serial.print("Button pressed! System now: ");
+            Serial.print("SUCCESS: Button pressed! System now: ");
             Serial.println(systemOn ? "ON" : "OFF");
             
             if (systemOn) {
@@ -164,14 +191,14 @@ void runControlUITest() {
                 Serial.println("  -> System inactive - all outputs stopped");
             }
         }
-        
+
         // Show periodic status when system is on
         static unsigned long lastStatus = 0;
         if (systemOn && millis() - lastStatus > 2000) {
             Serial.println("System active - heartbeat");
             lastStatus = millis();
         }
-        
+
         lastTestUpdate = millis();
     }
 }
