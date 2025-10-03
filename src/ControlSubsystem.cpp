@@ -7,8 +7,16 @@
 #include "TurnRightState.hpp"
 #include "StopState.hpp"
 #include "GPIOManager.hpp"
+#include "Speaker.h"
+#include "Screen.h"
 
-
+/**
+ * @brief Constructs a new ControlSubsystem instance
+ * 
+ * Initializes all hardware component pointers to nullptr and creates
+ * the FSM (Finite State Machine) with this subsystem as context.
+ * Actual hardware initialization is done in the initialize() method
+ */
 ControlSubsystem::ControlSubsystem()
     : motorA(nullptr), motorB(nullptr), lineDetector(nullptr), pidController(nullptr) {
         // Create FSM with this as context
@@ -21,7 +29,13 @@ ControlSubsystem::ControlSubsystem()
         turnRightState = nullptr;
         stopState = nullptr;
 }
-
+/**
+ * @brief Destroys the ControlSubsystem instance
+ * 
+ * Cleans up all dynamically allocated hardware components including
+ * motors, sensors, line detector, and PID controller. FSM-managed
+ * states are automatically cleaned up by the FSM destructor.
+ */
 ControlSubsystem::~ControlSubsystem() {
     // Clean up dynamically allocated resources
     delete motorA;
@@ -34,6 +48,20 @@ ControlSubsystem::~ControlSubsystem() {
     // States are managed by FSM, so no need to delete them here
 }
 
+/**
+ * @brief Initializes all hardware components and the FSM
+ * 
+ * Performs complete system initialization including:
+ * - GPIO pin configuration for motors, sensors, audio, and display
+ * - PhotoSensor and LineDetector setup for line detection
+ * - Motor configuration
+ * - Screen and Speaker system initialization
+ * - PID Controller setup for smooth line following
+ * - FSM state creation and initialization (tranistion to IdleState)
+ * 
+ * @note This method must be called before using any ControlSubsytem functionality
+ * @note  Pin assignments: Motors (19, 20), Sensors (1, 2, 3), Audio (23), LCD (21, 22), Button (11)
+ */
 void ControlSubsystem::initialize() {
     // Initialization code
 
@@ -81,6 +109,13 @@ void ControlSubsystem::initialize() {
     motorA->setMinimumStartPWM(20); // Example value
     motorB->setMinimumStartPWM(20); // Example value
 
+    // Initialize Screen and Speaker
+    screenBegin(LCD_DATA_PIN, LCD_CLK_PIN);
+    speakerBegin(AUDIO_PIN, 2, 10, 50);
+
+    // Show initial state on screen
+    showDirection(0); // Show STOP initially
+
     // Initialize PID Controller
     pidController = new PIDController(2.0f, 0.1f, 0.5f);
     pidController->setOutputLimits(-40.0f, 40.0f); // TODO: Tune these limits
@@ -91,6 +126,7 @@ void ControlSubsystem::initialize() {
     turnLeftState = new TurnLeftState();
     turnRightState = new TurnRightState();
     stopState = new StopState();
+    
 
     // Initialize FSM
     fsm->initialize();
@@ -105,7 +141,22 @@ void ControlSubsystem::initialize() {
     
 }
 
+/**
+ * @brief Main update loop for the ControlSubsystem
+ * 
+ * Performs the following operations in each cycle:
+ * 1. Services the speaker to maintain continuous audio playback
+ * 2. Updates the FSM to process current state logic
+ * 3. Generates events based on current sensor readings
+ * 4. Handles generated events through the FSM for state transitions
+ * 
+ * @note This method should be called continuously in the main loop
+ * @note Event generation and handling are decoupled for better modularity
+ */
 void ControlSubsystem::update() {
+    // Service the speaker melody
+    serviceMelody();
+
     // Read sensors, process events, update FSM
     fsm->update();
 
@@ -115,12 +166,43 @@ void ControlSubsystem::update() {
     }
 }
 
-
+/**
+ * @brief Handles events by delegating to generateEvent()
+ * 
+ * This method serves as a wrapper around generateEvent() for compatibility
+ * with the existing event handling interfrace.
+ * 
+ * @return Event The generated event based on current system state
+ * 
+ */
 Event ControlSubsystem::handleEvent() {
     // Handle the event and return result
     return generateEvent();
 }
-
+/**
+ * @brief Generates events based on current sensor readings and car state
+ * 
+ * Analyzes the current line detection state and car FSM state to determine
+ * appropriate events for state transitions. Events generation follows these rules:
+ * 
+ * - From IdleState: START_MOVEMENT when line is detected
+ * - From ForwardState: TURN_LEFT/TURN_RIGHT when turn conditions detected, OFF_LINE when line lost
+ * - From TurnLeftState/TurnRightState: FORWARD when line is regained, OFF_LINE if line lost
+ * - From StopState: START_MOVEMENT when line is detected (manual reset)
+ * 
+ * @return Event The appropriate event type based on current conditions:
+ *         - START_MOVEMENT: Line detected while idle or stopped
+ *         - TURN_LEFT: Left turn required while moving forward
+ *         - TURN_RIGHT: Right turn required while moving forward  
+ *         - FORWARD: Turn completed, resume forward motion
+ *         - OFF_LINE: Line lost, stop car
+ *         - UNKNOWN: Inconsistent sensor readings
+ *         - NONE: No significant state change detected
+ * 
+ * @note Returns NONE if hardware is not yet initialized (lineDetector is nullptr)
+ * @note All event decisions are logged to Serial for debugging
+ * 
+ */
 Event ControlSubsystem::generateEvent() {
     // If hardware is not inititialized yet, return no event
     if (lineDetector == nullptr) {

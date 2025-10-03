@@ -6,6 +6,8 @@
 #include "TurnLeftState.hpp"
 #include "TurnRightState.hpp"
 #include "StopState.hpp"
+#include "Speaker.h"
+#include "Screen.h"
 
 /**
  * @brief Constructs a new FSM object
@@ -134,7 +136,24 @@ void FSM::transitionTo(State* newState) {
     // Transition to new state
     currentState.reset(newState);
     currentState->onEntry(context);
+
+    // Provide audio/visual feedback for new state
+    const char* stateName = getCurrentStateName();
+    int direction = -1;
+
+    if (strcmp(stateName, "StopState") == 0) direction = 0; // STOP
+    else if (strcmp(stateName, "ForwardState") == 0) direction = 1; // FORWARD
+    else if (strcmp(stateName, "TurnLeftState") == 0) direction = 2; // LEFT
+    else if (strcmp(stateName, "TurnRightState") == 0) direction = 3; // RIGHT
+
+    if (direction >= 0) {
+        startMelodyForDirection(direction); // Audio feedback
+        showDirection(direction);      // Visual feedback
+        Serial.print("Feedback: Playing audio/visual for direction ");
+        Serial.println(direction);
+    }
 }
+
 
 
 /**
