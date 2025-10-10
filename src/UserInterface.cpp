@@ -38,31 +38,25 @@ bool UserInterface::wasButtonPressed() {
     GPIOManager& gpio = GPIOManager::getInstance();
     bool currentButtonState = gpio.readDigital(pinButton);
     bool pressed = false;
-
-    // Debug: Show button state periodically (less spam)
-    static unsigned long lastDebugTime = 0;
-    if (millis() - lastDebugTime > 2000) { // Debug every 2 seconds
-        Serial.printf("DEBUG: Button pin %d state: %s (last: %s)\n", 
-                     pinButton, 
-                     currentButtonState ? "HIGH" : "LOW",
-                     lastButtonState ? "HIGH" : "LOW");
-        lastDebugTime = millis();
-    }
+    
+    unsigned long currentTime = millis();
+    unsigned long timeSinceLastChange = currentTime - lastDebounceTime;
 
     // Debouncing logic
     if (currentButtonState != lastButtonState) {
-        Serial.printf("DEBUG: Button state changed from %s to %s\n", 
-                     lastButtonState ? "HIGH" : "LOW", 
-                     currentButtonState ? "HIGH" : "LOW");
-        lastDebounceTime = millis();
+        lastDebounceTime = currentTime;
+        Serial.printf("DEBUG_UI: State changed from %s to %s, debounce timer reset\n", 
+                     lastButtonState ? "HIGH" : "LOW", currentButtonState ? "HIGH" : "LOW");
     }
 
-    if ((millis() - lastDebounceTime) > 50) { // 50ms debounce time
+    if (timeSinceLastChange > 50) { // 50ms debounce time
         if (!currentButtonState && lastButtonState) {
             // Falling edge (HIGH to LOW) - for pullup resistor configuration
-            Serial.println("DEBUG: Button press detected (falling edge)!");
             pressed = true; // Button was pressed
+            Serial.printf("DEBUG_UI: BUTTON PRESS DETECTED! timeSince=%lu\n", timeSinceLastChange);
         }
+    } else {
+        Serial.printf("DEBUG_UI: Still debouncing - timeSince=%lu (need >50)\n", timeSinceLastChange);
     }
 
     lastButtonState = currentButtonState;

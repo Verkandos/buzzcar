@@ -1,28 +1,34 @@
 /*
- * BuzzCar Phase I Pairwise Integration Tests
+ * BuzzCar Phase I & II Integration Tests
  * 
- * Clean implementation of 6 integration test pairs:
+ * Phase I - Pairwise Integration Tests (6 tests):
  * 1. Control + UI: Button toggles system on/off with debouncing
- * 2. Control + Speaker: FSM state transitions with audio feedback
- * 3. Control + Screen: FSM state transitions with visual feedback
- * 4. Control + Motors: Motor control with PWM and differential steering
+ * 2. Control + Speaker: Direct speaker audio functionality
+ * 3. Control + Screen: Direct screen display functionality
+ * 4. Control + Motors: Motor class with speed control and PWM
  * 5. Control + Sensors: LineDetector with PhotoSensor integration
  * 6. Control + Power: Basic power management with LED indication
+ * 
+ * Phase II - Progressive Full Integration Tests (3 tests):
+ * 7. UI + AV: Button controlled audio-visual feedback
+ * 8. UI + AV + Sensors: Sensor-driven AV feedback
+ * 9. UI + AV + Sensors + Motors: Full autonomous line-following
+ * 
+ * Note: All tests are standalone and do not use FSM or ControlSubsystem
  */
 
 #include <Arduino.h>
 #include "GPIOManager.hpp"
 #include "LineDetector.hpp"
 #include "PhotoSensor.hpp"
-#include "ControlSubsystem.hpp"
 #include "UserInterface.hpp"
-#include "FSM.hpp"
 #include "Speaker.h"
 #include "Screen.h"
+#include "Motor.hpp"
 #include "ControlConfig.hpp"
 
 // PHASE I: Pairwise Integration Tests - Enable ONLY ONE test at a time
-const bool TEST_CONTROL_UI = true;        // Control + UI integration
+const bool TEST_CONTROL_UI = false;        // Control + UI integration
 const bool TEST_CONTROL_SPEAKER = false;   // Control + Speaker integration  
 const bool TEST_CONTROL_SCREEN = false;    // Control + Screen integration
 const bool TEST_CONTROL_AUDIOVISUAL = false; // Control + Speaker + Screen integration
@@ -35,15 +41,20 @@ const bool TEST_UI_AV = false;           // Control + UI + Speaker + Screen (AV)
 const bool TEST_UI_AV_SENSORS = false;   // Control + UI + AV + Sensors
 const bool TEST_UI_AV_SENSORS_MOTORS = false; // Control + UI + AV + Sensors + Motors
 
+// TEST 5 (SENSORS) SUB-MODE CONFIGURATION - Enable ONLY ONE mode when TEST_CONTROL_SENSORS = true
+const bool SENSOR_MODE_RAW_READINGS = false;      // Show raw sensor values every 3 seconds
+const bool SENSOR_MODE_LINE_DETECTION = true;    // Show LineDetection states with setup/display cycles
+
 // Global test objects
 GPIOManager* gpio = nullptr;
-ControlSubsystem* controlSystem = nullptr;
 UserInterface* ui = nullptr;
-FSM* fsm = nullptr;
 PhotoSensor* sensorLeft = nullptr;
 PhotoSensor* sensorCenter = nullptr;
 PhotoSensor* sensorRight = nullptr;
 LineDetector* lineDetector = nullptr;
+Motor* motorA = nullptr;
+Motor* motorB = nullptr;
+
 
 // Test timing variables
 unsigned long lastTestUpdate = 0;
@@ -74,58 +85,6 @@ bool validateTestSelection() {
     return true;
 }
 
-void initializeCommonComponents() {
-    gpio = &GPIOManager::getInstance();
-    Serial.println("GPIO Manager initialized");
-    
-    // Get configuration instance
-    ControlConfig& config = ControlConfig::getInstance();
-    
-    // Configure common hardware pins that multiple tests might use
-    std::map<int, std::string> commonPins = {
-        // Input pins
-        {PHOTO_SENSOR_A_PIN, "analog_input"},  // Pin 3 - Left sensor
-        {PHOTO_SENSOR_B_PIN, "analog_input"},  // Pin 2 - Center sensor  
-        {PHOTO_SENSOR_C_PIN, "analog_input"},  // Pin 1 - Right sensor
-        {USER_BUTTON_PIN, "digital_input_pullup"}, // Pin 11 - User button
-        
-        // Output pins  
-        {MOTOR_A_PIN, "digital_output"},       // Pin 20 - Motor A
-        {MOTOR_B_PIN, "digital_output"},       // Pin 19 - Motor B
-        {AUDIO_PIN, "digital_output"},         // Pin 23 - Speaker
-        {LCD_DATA_PIN, "digital_output"},      // Pin 22 - Screen SDA
-        {LCD_CLK_PIN, "digital_output"}        // Pin 21 - Screen SCL
-    };
-    
-    // Initialize all common pins
-    gpio->initializePins(commonPins);
-    
-    // Configure PWM for motor pins using ControlConfig values
-    gpio->configurePWMPin(MOTOR_A_PIN, config.motor.motorFrequency, 8); // From config, 8-bit resolution
-    gpio->configurePWMPin(MOTOR_B_PIN, config.motor.motorFrequency, 8); // From config, 8-bit resolution 
-    
-    // Configure PWM for audio pin using ControlConfig values
-    gpio->configurePWMPin(AUDIO_PIN, config.feedback.audioFrequency, 8); // From config, 8-bit resolution
-    
-    // Configure I2C for screen (SDA=22, SCL=21)
-    gpio->configureI2C(LCD_DATA_PIN, LCD_CLK_PIN);
-    
-    Serial.println("Common hardware pins configured using ControlConfig:");
-    Serial.printf("  Sensors: L:%d C:%d R:%d (Thresholds: Black<%d, White>%d)\n", 
-                  PHOTO_SENSOR_A_PIN, PHOTO_SENSOR_B_PIN, PHOTO_SENSOR_C_PIN,
-                  config.sensors.blackThreshold, config.sensors.whiteThreshold);
-    Serial.printf("  Button: %d (Control enabled: %s)\n", USER_BUTTON_PIN, 
-                  config.system.enableButtonControl ? "Yes" : "No");
-    Serial.printf("  Motors: A:%d B:%d (Frequency: %dHz, Base Speed: %d%%)\n", 
-                  MOTOR_A_PIN, MOTOR_B_PIN, config.motor.motorFrequency, config.motor.baseSpeed);
-    Serial.printf("  Audio: %d (Frequency: %dHz, Volume: %d%%, Enabled: %s)\n", 
-                  AUDIO_PIN, config.feedback.audioFrequency, config.feedback.audioVolume,
-                  config.feedback.enableAudio ? "Yes" : "No");
-    Serial.printf("  Screen: SDA:%d SCL:%d (Display enabled: %s)\n", 
-                  LCD_DATA_PIN, LCD_CLK_PIN, config.feedback.enableDisplay ? "Yes" : "No");
-    
-}
-
 // TEST 1: CONTROL + UI INTEGRATION
 
 void setupControlUITest() {
@@ -146,35 +105,17 @@ void setupControlUITest() {
     
     Serial.printf("Button configured on pin %d\n", USER_BUTTON_PIN);
     
-    // Initialize UserInterface (skip initialize to avoid overriding our pin config)
+    // Initialize UserInterface
     ui = new UserInterface();
-    // ui->initialize(); // Skip this - we already configured the pin correctly above
     
     testStartTime = millis();
     Serial.println("Press the user button to toggle system on/off...");
     Serial.println("System currently: OFF");
-    Serial.println("DEBUG: UI test setup complete, button monitoring active");
 }
 
 void runControlUITest() {
     // Check for button press every 50ms
     if (millis() - lastTestUpdate > 50) {
-        
-        // SIMPLE TEST: Just read the raw button state directly
-        static unsigned long lastRawDebug = 0;
-        if (millis() - lastRawDebug > 1000) { // Debug every 1 second
-            // Read button state directly from GPIO
-            bool rawButtonState = gpio->readDigital(USER_BUTTON_PIN);
-            Serial.printf("RAW GPIO READ: Pin %d = %s\n", USER_BUTTON_PIN, rawButtonState ? "HIGH" : "LOW");
-            lastRawDebug = millis();
-        }
-        
-        // Debug: Show that we're checking the button
-        static unsigned long lastCheckDebug = 0;
-        if (millis() - lastCheckDebug > 5000) { // Debug every 5 seconds
-            Serial.println("DEBUG: Try pressing/releasing the button now...");
-            lastCheckDebug = millis();
-        }
         
         // Check if button was pressed (with debouncing)
         if (ui->wasButtonPressed()) {
@@ -182,7 +123,7 @@ void runControlUITest() {
             systemOn = !systemOn;
             ui->toggleSystem();
             
-            Serial.print("SUCCESS: Button pressed! System now: ");
+            Serial.print("Button pressed! System now: ");
             Serial.println(systemOn ? "ON" : "OFF");
             
             if (systemOn) {
@@ -401,84 +342,156 @@ void runControlAudioVisualTest() {
 
 void setupControlMotorsTest() {
     Serial.println("=== CONTROL + MOTORS INTEGRATION TEST ===");
-    Serial.println("Testing: Motor control with PWM and differential steering");
-    Serial.println("Expected: Motors respond to commands, differential turning works");
+    Serial.println("Testing: Motor class with speed control (0%, 50%, 75%, 99%)");
+    Serial.println("Expected: Motors use Motor.cpp speed mapping and PWM control");
     Serial.println();
     
-    initializeCommonComponents();
+    // Initialize GPIO Manager
+    gpio = &GPIOManager::getInstance();
+    Serial.println("GPIO Manager initialized");
     
-    // Initialize control system with motors
-    controlSystem = new ControlSubsystem();
-    controlSystem->initialize();
+    // Get configuration instance
+    ControlConfig& config = ControlConfig::getInstance();
+    
+    // Configure motor pins
+    std::map<int, std::string> motorPins = {
+        {MOTOR_A_PIN, "digital_output"},       // Pin 20 - Motor A
+        {MOTOR_B_PIN, "digital_output"}        // Pin 19 - Motor B
+    };
+    gpio->initializePins(motorPins);
+    
+    // Configure PWM for motor pins using ControlConfig values
+    gpio->configurePWMPin(MOTOR_A_PIN, config.motor.motorFrequency, 8); // 8-bit resolution (0-255)
+    gpio->configurePWMPin(MOTOR_B_PIN, config.motor.motorFrequency, 8); // 8-bit resolution (0-255)
+    
+    // Initialize Motor objects (uses Motor.cpp)
+    motorA = new Motor(MOTOR_A_PIN);
+    motorB = new Motor(MOTOR_B_PIN);
+    
+    motorA->initialize();
+    motorB->initialize();
+    
+    // Set minimum start PWM to avoid dead zone
+    motorA->setMinimumStartPWM(50);  // From Motor class
+    motorB->setMinimumStartPWM(50);
     
     testStartTime = millis();
     testPhase = 0;
     
-    Serial.println("Starting motor control test sequence...");
-    Serial.println("Sequence: Forward -> Turn Left -> Turn Right -> Stop");
+    Serial.println("Starting Motor class integration test...");
+    Serial.println("Sequence: 50% -> 75% -> 99% -> STOP (3s each) -> Wait 5s -> Repeat");
+    Serial.printf("Motors: A=%d, B=%d | Frequency: %dHz\n", 
+                  MOTOR_A_PIN, MOTOR_B_PIN, config.motor.motorFrequency);
+    Serial.printf("Minimum Start PWM: %d \n", motorA->getMinimumStartPWM());
+    Serial.println("Both motors will run together using Motor::setSpeed()");
 }
 
 void runControlMotorsTest() {
-    // Change motor command every 3 seconds
-    if (millis() - lastTestUpdate > 3000) {
-        
-        const char* commandNames[] = {"FORWARD", "TURN_LEFT", "FORWARD", "TURN_RIGHT"};
-        EventType events[] = {
-            EventType::START_MOVEMENT,
-            EventType::TURN_LEFT, 
-            EventType::FORWARD,
-            EventType::TURN_RIGHT
-        };
-        
-        if (testPhase < 4) {
-            Serial.printf("Phase %d: Motor command %s\n", testPhase + 1, commandNames[testPhase]);
+    unsigned long currentTime = millis();
+    unsigned long elapsedTime = currentTime - lastTestUpdate;
+    
+    // Test cycle: 50% (3s) -> 75% (3s) -> 99% (3s) -> STOP -> Wait 5s -> Repeat  
+    if (testPhase < 3) {
+        // Active motor phases (0, 1, 2)
+        if (elapsedTime > 3000) { // 3 seconds per phase
+            int speedPercents[] = {50, 75, 99}; // Speed in percentage (0-100)
             
-            switch (testPhase) {
-                case 0:
-                    Serial.println("  -> Both motors same speed (forward)");
-                    break;
-                case 1:
-                    Serial.println("  -> Left motor slower (turn left)");
-                    break;
-                case 2:
-                    Serial.println("  -> Right motor slower (turn right)");
-                    break;
-                case 3:
-                    Serial.println("  -> Both motors stop");
-                    break;
-            }
+            Serial.printf("Phase %d: Motors at %d%% speed\n", 
+                         testPhase + 1, speedPercents[testPhase]);
             
-            // Create event and send it to the FSM for proper state transition
-            Event testEvent(events[testPhase]);
-            controlSystem->getFSM()->handleEvent(testEvent);
-            controlSystem->update();
+            // Use Motor class setSpeed() method
+            motorA->setSpeed(speedPercents[testPhase]);
+            motorB->setSpeed(speedPercents[testPhase]);
+            
+            Serial.printf("  -> Motor A: Speed=%d%%, PWM=%d, Running=%s\n",
+                         motorA->getCurrentSpeed(), motorA->getCurrentPWM(), 
+                         motorA->isRunning() ? "Yes" : "No");
+            Serial.printf("  -> Motor B: Speed=%d%%, PWM=%d, Running=%s\n",
+                         motorB->getCurrentSpeed(), motorB->getCurrentPWM(),
+                         motorB->isRunning() ? "Yes" : "No");
             
             testPhase++;
-        } else {
-            // Reset cycle
-            testPhase = 0;
-            Serial.println("\n--- Motor test cycle complete, restarting ---\n");
+            lastTestUpdate = currentTime;
         }
-        
-        lastTestUpdate = millis();
+    } else if (testPhase == 3) {
+        // Stop phase
+        if (elapsedTime > 3000) { // 3 seconds at 99%
+            Serial.println("Phase 4: Motors STOP using Motor::stop()");
+            
+            // Use Motor class stop() method
+            motorA->stop();
+            motorB->stop();
+            
+            Serial.printf("  -> Motor A: Speed=%d%%, Running=%s\n",
+                         motorA->getCurrentSpeed(), motorA->isRunning() ? "Yes" : "No");
+            Serial.printf("  -> Motor B: Speed=%d%%, Running=%s\n",
+                         motorB->getCurrentSpeed(), motorB->isRunning() ? "Yes" : "No");
+            
+            testPhase++;
+            lastTestUpdate = currentTime;
+        }
+    } else if (testPhase == 4) {
+        // Wait phase
+        if (elapsedTime > 5000) { // 5 seconds wait
+            Serial.println("\n--- Motor class test cycle complete, restarting ---\n");
+            testPhase = 0; // Reset cycle
+            lastTestUpdate = currentTime;
+        } else {
+            // Show countdown during wait
+            static unsigned long lastCountdown = 0;
+            if (currentTime - lastCountdown > 1000) {
+                int remaining = 5 - (elapsedTime / 1000);
+                Serial.printf("Waiting %d seconds before next cycle...\n", remaining);
+                lastCountdown = currentTime;
+            }
+        }
     }
-    
-    // Keep system running for motor control
-    controlSystem->update();
 }
 
 // TEST 5: CONTROL + SENSORS INTEGRATION
 
 void setupControlSensorsTest() {
     Serial.println("=== CONTROL + SENSORS INTEGRATION TEST ===");
-    Serial.println("Testing: LineDetector with PhotoSensor integration");
-    Serial.println("Expected: Sensor readings stable, LineState changes with line position");
+    
+    // Validate sensor test mode selection
+    int activeModes = 0;
+    if (SENSOR_MODE_RAW_READINGS) activeModes++;
+    if (SENSOR_MODE_LINE_DETECTION) activeModes++;
+    
+    if (activeModes != 1) {
+        Serial.println("ERROR: Enable exactly ONE sensor test mode!");
+        Serial.printf("Current active modes: %d\n", activeModes);
+        while (true) {
+            delay(1000);
+            Serial.println("Fix sensor mode configuration and restart!");
+        }
+    }
+    
+    if (SENSOR_MODE_RAW_READINGS) {
+        Serial.println("Mode: RAW READINGS");
+        Serial.println("Testing: Direct sensor readings");
+        Serial.println("Expected: Raw sensor values displayed every 3 seconds");
+    } else if (SENSOR_MODE_LINE_DETECTION) {
+        Serial.println("Mode: LINE DETECTION STATES");
+        Serial.println("Testing: LineDetector state analysis");
+        Serial.println("Expected: 5s setup -> 5s state display -> repeat");
+    }
     Serial.println();
     
-    initializeCommonComponents();
+    // Initialize GPIO Manager
+    gpio = &GPIOManager::getInstance();
+    Serial.println("GPIO Manager initialized");
     
     // Get configuration instance
     ControlConfig& config = ControlConfig::getInstance();
+    
+    // Configure sensor pins
+    std::map<int, std::string> sensorPins = {
+        {PHOTO_SENSOR_A_PIN, "analog_input"},  // Pin 3 - Left sensor
+        {PHOTO_SENSOR_B_PIN, "analog_input"},  // Pin 2 - Center sensor  
+        {PHOTO_SENSOR_C_PIN, "analog_input"}   // Pin 1 - Right sensor
+    };
+    gpio->initializePins(sensorPins);
     
     // Initialize sensors using ControlConfig thresholds
     int sensorThreshold = (config.sensors.blackThreshold + config.sensors.whiteThreshold) / 2; // Use midpoint
@@ -495,54 +508,133 @@ void setupControlSensorsTest() {
                                    config.sensors.blackThreshold, config.sensors.whiteThreshold);
     
     testStartTime = millis();
+    lastTestUpdate = millis();
+    testPhase = 0; // 0 = setup phase, 1 = display phase
     
     Serial.println("Sensor pins configured:");
-    Serial.printf("  Left: Pin %d\n", PHOTO_SENSOR_A_PIN);
-    Serial.printf("  Center: Pin %d\n", PHOTO_SENSOR_B_PIN);
-    Serial.printf("  Right: Pin %d\n", PHOTO_SENSOR_C_PIN);
+    Serial.printf("  Left: Pin %d | Center: Pin %d | Right: Pin %d\n", 
+                  PHOTO_SENSOR_A_PIN, PHOTO_SENSOR_B_PIN, PHOTO_SENSOR_C_PIN);
+    Serial.printf("  Thresholds: Black < %d | White > %d | Detection threshold: %d\n",
+                  config.sensors.blackThreshold, config.sensors.whiteThreshold, sensorThreshold);
     Serial.println();
-    Serial.println("Place line under sensors to test detection...");
+    
+    if (SENSOR_MODE_RAW_READINGS) {
+        Serial.println("Starting raw sensor monitoring (3-second intervals)...");
+        Serial.println("Watch the sensor values update...");
+    } else if (SENSOR_MODE_LINE_DETECTION) {
+        Serial.println("Starting LineDetection state monitoring (5s cycles)...");
+        Serial.println("\n*** SETUP PHASE: Position your line under the sensors ***");
+        Serial.println("You have 5 seconds to prepare...");
+    }
 }
 
 void runControlSensorsTest() {
-    // Read sensors every 300ms
-    if (millis() - lastTestUpdate > 300) {
-        
-        // Get raw sensor readings
-        int leftRaw = sensorLeft->readRaw();
-        int centerRaw = sensorCenter->readRaw();
-        int rightRaw = sensorRight->readRaw();
-        
-        // Get LineDetector analysis
-        LineState lineState = lineDetector->detectLineState();
-        float linePosition = lineDetector->calculateLinePosition();
-        
-        // Display readings
-        Serial.printf("Sensors [L:%4d C:%4d R:%4d] | ", leftRaw, centerRaw, rightRaw);
-        
-        // Display line state
-        Serial.print("State: ");
-        switch (lineState) {
-            case LineState::ON_LINE:
-                Serial.print("ON_LINE");
-                break;
-            case LineState::TURN_LEFT:
-                Serial.print("TURN_LEFT");
-                break;
-            case LineState::TURN_RIGHT:
-                Serial.print("TURN_RIGHT");
-                break;
-            case LineState::OFF_LINE:
-                Serial.print("OFF_LINE");
-                break;
-            case LineState::UNKNOWN:
-                Serial.print("UNKNOWN");
-                break;
+    if (SENSOR_MODE_RAW_READINGS) {
+        // MODE 1: Raw sensor readings every 3 seconds
+        if (millis() - lastTestUpdate > 3000) {
+            
+            // Get raw sensor readings
+            int leftRaw = sensorLeft->readRaw();
+            int centerRaw = sensorCenter->readRaw();
+            int rightRaw = sensorRight->readRaw();
+            
+            // Display raw sensor information
+            Serial.println("=== RAW SENSOR READING ===");
+            Serial.printf("Raw Values -> Left: %4d | Center: %4d | Right: %4d\n", 
+                         leftRaw, centerRaw, rightRaw);
+            Serial.printf("Threshold: %d (values below = DARK, above = LIGHT)\n", sensorLeft->getThreshold());
+            Serial.println("==========================\n");
+            
+            lastTestUpdate = millis();
         }
         
-        Serial.printf(" | Position: %.3f\n", linePosition);
+    } else if (SENSOR_MODE_LINE_DETECTION) {
+        // MODE 2: LineDetection states with 5s setup / 5s display cycles
+        unsigned long elapsedTime = millis() - lastTestUpdate;
         
-        lastTestUpdate = millis();
+        if (testPhase == 0) {
+            // SETUP PHASE: 5 seconds to position line
+            if (elapsedTime > 5000) {
+                Serial.println("\n*** DISPLAY PHASE: Showing sensor states for 5 seconds ***");
+                testPhase = 1; // Move to display phase
+                lastTestUpdate = millis();
+            } else {
+                // Show countdown during setup
+                static unsigned long lastCountdown = 0;
+                if (millis() - lastCountdown > 1000) {
+                    int remaining = 5 - (elapsedTime / 1000);
+                    Serial.printf("Setup time remaining: %d seconds...\n", remaining);
+                    lastCountdown = millis();
+                }
+            }
+            
+        } else if (testPhase == 1) {
+            // DISPLAY PHASE: Show sensor states every 500ms for 5 seconds
+            static unsigned long lastReading = 0;
+            if (millis() - lastReading > 500) {
+                
+                // Get raw sensor readings
+                int leftRaw = sensorLeft->readRaw();
+                int centerRaw = sensorCenter->readRaw();
+                int rightRaw = sensorRight->readRaw();
+                
+                // Get configuration instance for thresholds
+                ControlConfig& config = ControlConfig::getInstance();
+                
+                // Determine what each sensor detects (BLACK or WHITE)
+                const char* leftDetection = (leftRaw < config.sensors.blackThreshold) ? "BLACK" : 
+                                           (leftRaw > config.sensors.whiteThreshold) ? "WHITE" : "GRAY";
+                const char* centerDetection = (centerRaw < config.sensors.blackThreshold) ? "BLACK" : 
+                                             (centerRaw > config.sensors.whiteThreshold) ? "WHITE" : "GRAY";
+                const char* rightDetection = (rightRaw < config.sensors.blackThreshold) ? "BLACK" : 
+                                            (rightRaw > config.sensors.whiteThreshold) ? "WHITE" : "GRAY";
+                
+                // Get LineDetector analysis
+                LineState lineState = lineDetector->detectLineState();
+                float linePosition = lineDetector->calculateLinePosition();
+                
+                // Display comprehensive sensor information
+                Serial.println("=== LINE DETECTION STATE ===");
+                Serial.printf("Raw Values -> Left: %4d | Center: %4d | Right: %4d\n", 
+                             leftRaw, centerRaw, rightRaw);
+                Serial.printf("Detection  -> Left: %-5s | Center: %-5s | Right: %-5s\n",
+                             leftDetection, centerDetection, rightDetection);
+                
+                // Display line detection state
+                Serial.print("Line State: ");
+                switch (lineState) {
+                    case LineState::ON_LINE:
+                        Serial.println("ON_LINE (following straight)");
+                        break;
+                    case LineState::TURN_LEFT:
+                        Serial.println("TURN_LEFT (line moved left)");
+                        break;
+                    case LineState::TURN_RIGHT:
+                        Serial.println("TURN_RIGHT (line moved right)");
+                        break;
+                    case LineState::OFF_LINE:
+                        Serial.println("OFF_LINE (no line detected)");
+                        break;
+                    case LineState::UNKNOWN:
+                        Serial.println("UNKNOWN (ambiguous reading)");
+                        break;
+                }
+                
+                Serial.printf("Line Position: %.3f (normalized -1.0 to +1.0)\n", linePosition);
+                Serial.println("============================\n");
+                
+                lastReading = millis();
+            }
+            
+            // Check if display phase is complete (5 seconds)
+            if (elapsedTime > 5000) {
+                Serial.println("\n--- Line detection cycle complete ---");
+                Serial.println("*** SETUP PHASE: Reposition your line for next test ***");
+                Serial.println("You have 5 seconds to prepare...\n");
+                testPhase = 0; // Return to setup phase
+                lastTestUpdate = millis();
+            }
+        }
     }
 }
 
@@ -603,30 +695,61 @@ void runControlPowerTest() {
 void setupUIAVTest() {
     Serial.println("=== PHASE II: CONTROL + UI + SPEAKER + SCREEN (AV) TEST ===");
     Serial.println("Testing: Button controls coordinated audio/visual feedback");
-    Serial.println("Expected: Button controls AV system, FSM states match audio + screen");
+    Serial.println("Expected: Button toggles AV system, cycles through directions with audio + screen");
     Serial.println();
     
-    initializeCommonComponents();
+    // Initialize GPIO Manager
+    gpio = &GPIOManager::getInstance();
+    Serial.println("GPIO Manager initialized");
+    
+    // Get configuration instance
+    ControlConfig& config = ControlConfig::getInstance();
+    
+    // Configure button, audio and screen pins
+    std::map<int, std::string> uiAvPins = {
+        {USER_BUTTON_PIN, "digital_input_pullup"}, // Pin 11 - User button
+        {AUDIO_PIN, "digital_output"},              // Pin 23 - Speaker
+        {LCD_DATA_PIN, "digital_output"},           // Pin 22 - Screen SDA
+        {LCD_CLK_PIN, "digital_output"}             // Pin 21 - Screen SCL
+    };
+    gpio->initializePins(uiAvPins);
+    
+    // Configure PWM for audio pin using ControlConfig values
+    gpio->configurePWMPin(AUDIO_PIN, config.feedback.audioFrequency, 8);
+    
+    // Configure I2C for screen (SDA=22, SCL=21)
+    gpio->configureI2C(LCD_DATA_PIN, LCD_CLK_PIN);
     
     // Initialize UserInterface
     ui = new UserInterface();
-    ui->initialize();
     
-    // Initialize control system with AV components
-    controlSystem = new ControlSubsystem();
-    controlSystem->initialize();
+    // Synchronize UserInterface button state with actual pin state
+    delay(10); // Allow pin to stabilize
+    ui->isButtonPressed(); // This will update internal state
+    
+    // Initialize both speaker and screen directly
+    speakerBegin(AUDIO_PIN, 2, 10, config.feedback.audioVolume);
+    screenBegin(LCD_DATA_PIN, LCD_CLK_PIN);
     
     testStartTime = millis();
     testPhase = 0;
     systemOn = false;
     
+    // Initialize screen to show STOP when system is OFF
+    showDirection(0);  // Display "STOP" to indicate system is off initially
+    
     Serial.println("Press button to toggle AV system on/off...");
-    Serial.println("When ON: FSM cycles every 5 seconds with coordinated audio + screen");
-    Serial.println("When OFF: Audio stops, screen shows 'SYSTEM OFF'");
+    Serial.println("When ON: Cycles through STOP, FORWARD, LEFT, RIGHT with audio + screen");
+    Serial.println("When OFF: Audio stops, screen shows 'STOP'");
+    Serial.printf("Button: Pin %d | Speaker: Pin %d, Volume %d%% | Screen: SDA=%d, SCL=%d\n", 
+                  USER_BUTTON_PIN, AUDIO_PIN, config.feedback.audioVolume, LCD_DATA_PIN, LCD_CLK_PIN);
     Serial.println("System currently: OFF");
 }
 
 void runUIAVTest() {
+    // AV cycling timing
+    static unsigned long lastAVUpdate = 0;
+    
     // Check for button press every 50ms
     if (millis() - lastTestUpdate > 50) {
         
@@ -640,52 +763,54 @@ void runUIAVTest() {
             Serial.println(systemOn ? "ON" : "OFF");
             
             if (systemOn) {
-                Serial.println("  -> AV system active - FSM cycling with audio + visual feedback");
-                testPhase = 0; // Reset FSM cycle
+                Serial.println("  -> AV system active - cycling through directions with audio + screen");
+                testPhase = 0; // Reset cycle
+                lastAVUpdate = 0; // Force immediate start of AV cycle
             } else {
-                Serial.println("  -> AV system inactive - audio stopped, screen off");
+                Serial.println("  -> AV system inactive - audio stopped, screen shows STOP");
                 
-                // Stop audio and clear screen immediately
-                speakerStop();              // Stop any playing audio
-                showDirection(0);           // Display "STOP" to indicate system is off
-                
-                // Also send STOP event to control system for proper state management
-                Event stopEvent(EventType::STOP);
-                controlSystem->update();
+                // Stop audio and show STOP on screen immediately
+                speakerStop();      // Stop any playing audio
+                showDirection(0);   // Display "STOP" to indicate system is off
             }
         }
         
+        // AV cycling when system is ON
+        if (systemOn && millis() - lastAVUpdate > 3000) { 
+            const char* avNames[] = {"STOP", "FORWARD", "LEFT", "RIGHT"};
+            int directions[] = {0, 1, 2, 3}; // 0=STOP, 1=FORWARD, 2=LEFT, 3=RIGHT
+            
+            if (testPhase < 4) {
+                Serial.printf("System ON - Phase %d: %s - Audio + Visual\n", testPhase + 1, avNames[testPhase]);
+                Serial.println("  -> Check screen AND listen for audio...");
+                
+                // Simultaneously trigger both audio and visual feedback
+                startMelodyForDirection(directions[testPhase]);  // Audio feedback
+                showDirection(directions[testPhase]);            // Visual feedback
+                
+                testPhase++;
+            } else {
+                // Reset cycle
+                testPhase = 0;
+                Serial.println("\n--- UI + AV test cycle complete, restarting ---\n");
+            }
+            
+            lastAVUpdate = millis();
+        }
+        
+        // Show periodic status when system is on
+        static unsigned long lastStatus = 0;
+        if (systemOn && millis() - lastStatus > 2000) {
+            Serial.println("AV system active - heartbeat");
+            lastStatus = millis();
+        }
+
         lastTestUpdate = millis();
     }
     
-    // FSM cycling when system is ON
-    static unsigned long lastFSMUpdate = 0;
-    if (systemOn && millis() - lastFSMUpdate > 5000) { // 5-second cycles
-        
-        const char* stateNames[] = {"FORWARD", "TURN_LEFT", "FORWARD", "TURN_RIGHT"};
-        EventType events[] = {
-            EventType::START_MOVEMENT,
-            EventType::TURN_LEFT, 
-            EventType::FORWARD,
-            EventType::TURN_RIGHT
-        };
-        
-        // Cycle through states
-        int currentState = testPhase % 4;
-        Serial.printf("System ON - State: %s [Audio + Visual]\n", stateNames[currentState]);
-        
-        // Create event and send it to the FSM for proper state transition
-        Event testEvent(events[currentState]);
-        controlSystem->getFSM()->handleEvent(testEvent);
-        controlSystem->update();
-        
-        testPhase++;
-        lastFSMUpdate = millis();
-    }
-    
-    // Keep system running for AV processing
+    // Keep servicing the melody to maintain audio playback
     if (systemOn) {
-        controlSystem->update();
+        serviceMelody();
     }
 }
 
@@ -694,21 +819,44 @@ void runUIAVTest() {
 void setupUIAVSensorsTest() {
     Serial.println("=== PHASE II: CONTROL + UI + AV + SENSORS TEST ===");
     Serial.println("Testing: Sensor-driven AV feedback with button control");
-    Serial.println("Expected: Sensors drive FSM states, AV matches line position");
+    Serial.println("Expected: Button toggles system, sensors update AV every 5 seconds");
     Serial.println();
     
-    initializeCommonComponents();
-    
-    // Initialize UserInterface
-    ui = new UserInterface();
-    ui->initialize();
-    
-    // Initialize control system
-    controlSystem = new ControlSubsystem();
-    controlSystem->initialize();
+    // Initialize GPIO Manager
+    gpio = &GPIOManager::getInstance();
+    Serial.println("GPIO Manager initialized");
     
     // Get configuration instance
     ControlConfig& config = ControlConfig::getInstance();
+    
+    // Configure button, audio, screen, and sensor pins
+    std::map<int, std::string> uiAvSensorPins = {
+        {USER_BUTTON_PIN, "digital_input_pullup"},  // Pin 11 - User button
+        {AUDIO_PIN, "digital_output"},               // Pin 23 - Speaker
+        {LCD_DATA_PIN, "digital_output"},            // Pin 22 - Screen SDA
+        {LCD_CLK_PIN, "digital_output"},             // Pin 21 - Screen SCL
+        {PHOTO_SENSOR_A_PIN, "analog_input"},        // Pin 3 - Left sensor
+        {PHOTO_SENSOR_B_PIN, "analog_input"},        // Pin 2 - Center sensor  
+        {PHOTO_SENSOR_C_PIN, "analog_input"}         // Pin 1 - Right sensor
+    };
+    gpio->initializePins(uiAvSensorPins);
+    
+    // Configure PWM for audio pin using ControlConfig values
+    gpio->configurePWMPin(AUDIO_PIN, config.feedback.audioFrequency, 8);
+    
+    // Configure I2C for screen (SDA=22, SCL=21)
+    gpio->configureI2C(LCD_DATA_PIN, LCD_CLK_PIN);
+    
+    // Initialize UserInterface
+    ui = new UserInterface();
+    
+    // Synchronize UserInterface button state with actual pin state
+    delay(10); // Allow pin to stabilize
+    ui->isButtonPressed(); // This will update internal state
+    
+    // Initialize speaker and screen directly
+    speakerBegin(AUDIO_PIN, 2, 10, config.feedback.audioVolume);
+    screenBegin(LCD_DATA_PIN, LCD_CLK_PIN);
     
     // Initialize sensors using ControlConfig thresholds
     int sensorThreshold = (config.sensors.blackThreshold + config.sensors.whiteThreshold) / 2;
@@ -725,16 +873,27 @@ void setupUIAVSensorsTest() {
                                    config.sensors.blackThreshold, config.sensors.whiteThreshold);
     
     testStartTime = millis();
+    testPhase = 0;
     systemOn = false;
     
+    // Initialize screen to show STOP when system is OFF
+    showDirection(0);  // Display "STOP" to indicate system is off initially
+    
     Serial.println("Press button to toggle sensor-driven AV system...");
-    Serial.println("When ON: Sensors drive AV feedback in real-time");
-    Serial.println("When OFF: Sensors monitor but no AV feedback");
-    Serial.println("Place line under sensors to test...");
+    Serial.println("When ON: Sensors update AV feedback every 5 seconds based on line position");
+    Serial.println("When OFF: Audio stops, screen shows 'STOP', sensors monitor only");
+    Serial.printf("Button: Pin %d | Speaker: Pin %d | Screen: SDA=%d, SCL=%d\n", 
+                  USER_BUTTON_PIN, AUDIO_PIN, LCD_DATA_PIN, LCD_CLK_PIN);
+    Serial.printf("Sensors: L:%d C:%d R:%d (Thresholds: Black<%d, White>%d)\n",
+                  PHOTO_SENSOR_A_PIN, PHOTO_SENSOR_B_PIN, PHOTO_SENSOR_C_PIN,
+                  config.sensors.blackThreshold, config.sensors.whiteThreshold);
     Serial.println("System currently: OFF");
 }
 
 void runUIAVSensorsTest() {
+    // AV update timing (5 second intervals when system is ON)
+    static unsigned long lastAVUpdate = 0;
+    
     // Check for button press every 50ms
     if (millis() - lastTestUpdate > 50) {
         
@@ -748,68 +907,106 @@ void runUIAVSensorsTest() {
             Serial.println(systemOn ? "ON" : "OFF");
             
             if (systemOn) {
-                Serial.println("  -> Sensor-driven AV active - line following with feedback");
+                Serial.println("  -> Sensor-driven AV active - will update based on line position every 5 seconds");
+                lastAVUpdate = 0; // Force immediate sensor reading and AV update
             } else {
-                Serial.println("  -> AV disabled - sensors monitoring only");
+                Serial.println("  -> AV disabled - audio stopped, screen shows STOP");
+                
+                // Stop audio and show STOP on screen immediately
+                speakerStop();      // Stop any playing audio
+                showDirection(0);   // Display "STOP" to indicate system is off
             }
         }
         
         lastTestUpdate = millis();
     }
     
-    // Sensor reading and AV feedback every 200ms
-    static unsigned long lastSensorUpdate = 0;
-    if (millis() - lastSensorUpdate > 200) {
+    // Sensor reading and AV feedback every 5 seconds when system is ON
+    if (systemOn && millis() - lastAVUpdate > 5000) {
         
         // Get raw sensor readings
         int leftRaw = sensorLeft->readRaw();
         int centerRaw = sensorCenter->readRaw();
         int rightRaw = sensorRight->readRaw();
         
+        // Get configuration instance for thresholds
+        ControlConfig& config = ControlConfig::getInstance();
+        
+        // Determine what each sensor detects (BLACK or WHITE)
+        const char* leftDetection = (leftRaw < config.sensors.blackThreshold) ? "BLACK" : 
+                                   (leftRaw > config.sensors.whiteThreshold) ? "WHITE" : "GRAY";
+        const char* centerDetection = (centerRaw < config.sensors.blackThreshold) ? "BLACK" : 
+                                     (centerRaw > config.sensors.whiteThreshold) ? "WHITE" : "GRAY";
+        const char* rightDetection = (rightRaw < config.sensors.blackThreshold) ? "BLACK" : 
+                                    (rightRaw > config.sensors.whiteThreshold) ? "WHITE" : "GRAY";
+        
         // Get LineDetector analysis
         LineState lineState = lineDetector->detectLineState();
         float linePosition = lineDetector->calculateLinePosition();
         
-        // Display sensor readings
-        Serial.printf("Sensors [L:%4d C:%4d R:%4d] | ", leftRaw, centerRaw, rightRaw);
-        
-        // Display line state
+        // Map LineState to direction for AV feedback
         const char* stateStr = "UNKNOWN";
         const char* avStr = "None";
+        int direction = 0; // 0=STOP, 1=FORWARD, 2=LEFT, 3=RIGHT
         
         switch (lineState) {
             case LineState::ON_LINE:
                 stateStr = "ON_LINE";
                 avStr = "Forward";
+                direction = 1; // FORWARD
                 break;
             case LineState::TURN_LEFT:
                 stateStr = "TURN_LEFT";
-                avStr = "Left";
+                avStr = "Left Turn";
+                direction = 2; // LEFT
                 break;
             case LineState::TURN_RIGHT:
                 stateStr = "TURN_RIGHT";
-                avStr = "Right";
+                avStr = "Right Turn";
+                direction = 3; // RIGHT
                 break;
             case LineState::OFF_LINE:
                 stateStr = "OFF_LINE";
                 avStr = "Stop";
+                direction = 0; // STOP
                 break;
             case LineState::UNKNOWN:
                 stateStr = "UNKNOWN";
-                avStr = "None";
+                avStr = "Stop (Unknown)";
+                direction = 0; // STOP
                 break;
         }
         
-        if (systemOn) {
-            Serial.printf("System ON - State: %s [AV: %s] | Position: %.3f\n", stateStr, avStr, linePosition);
-            
-            // Update control system for AV feedback based on sensors
-            controlSystem->update();
-        } else {
-            Serial.printf("System OFF - State: %s (monitoring only)\n", stateStr);
-        }
+        // Display comprehensive sensor information
+        Serial.println("\n=== SENSOR-DRIVEN AV UPDATE ===");
+        Serial.printf("Raw Values -> Left: %4d | Center: %4d | Right: %4d\n", 
+                     leftRaw, centerRaw, rightRaw);
+        Serial.printf("Detection  -> Left: %-5s | Center: %-5s | Right: %-5s\n",
+                     leftDetection, centerDetection, rightDetection);
+        Serial.printf("Line State: %s\n", stateStr);
+        Serial.printf("Line Position: %.3f (normalized -1.0 to +1.0)\n", linePosition);
+        Serial.printf("AV Feedback: %s (direction=%d)\n", avStr, direction);
         
-        lastSensorUpdate = millis();
+        // Update audio and visual feedback based on detected line state
+        startMelodyForDirection(direction);  // Audio feedback
+        showDirection(direction);            // Visual feedback
+        
+        Serial.println("  -> Screen updated & audio playing");
+        Serial.println("================================\n");
+        
+        lastAVUpdate = millis();
+    }
+    
+    // Show periodic heartbeat when system is on (every 2 seconds between AV updates)
+    static unsigned long lastHeartbeat = 0;
+    if (systemOn && millis() - lastHeartbeat > 2000) {
+        Serial.println("Sensor-AV system active - monitoring line position...");
+        lastHeartbeat = millis();
+    }
+    
+    // Keep servicing the melody to maintain audio playback
+    if (systemOn) {
+        serviceMelody();
     }
 }
 
@@ -818,21 +1015,50 @@ void runUIAVSensorsTest() {
 void setupUIAVSensorsMotorsTest() {
     Serial.println("=== PHASE II: CONTROL + UI + AV + SENSORS + MOTORS TEST ===");
     Serial.println("Testing: Complete line-following with AV feedback and motor control");
-    Serial.println("Expected: Full autonomous operation with coordinated feedback");
+    Serial.println("Expected: Full autonomous operation with sensor-driven motors and AV");
     Serial.println();
     
-    initializeCommonComponents();
-    
-    // Initialize UserInterface
-    ui = new UserInterface();
-    ui->initialize();
-    
-    // Initialize control system (includes motors)
-    controlSystem = new ControlSubsystem();
-    controlSystem->initialize();
+    // Initialize GPIO Manager
+    gpio = &GPIOManager::getInstance();
+    Serial.println("GPIO Manager initialized");
     
     // Get configuration instance
     ControlConfig& config = ControlConfig::getInstance();
+    
+    // Configure button, audio, screen, sensor, and motor pins
+    std::map<int, std::string> fullSystemPins = {
+        {USER_BUTTON_PIN, "digital_input_pullup"},  // Pin 11 - User button
+        {AUDIO_PIN, "digital_output"},               // Pin 23 - Speaker
+        {LCD_DATA_PIN, "digital_output"},            // Pin 22 - Screen SDA
+        {LCD_CLK_PIN, "digital_output"},             // Pin 21 - Screen SCL
+        {PHOTO_SENSOR_A_PIN, "analog_input"},        // Pin 3 - Left sensor
+        {PHOTO_SENSOR_B_PIN, "analog_input"},        // Pin 2 - Center sensor  
+        {PHOTO_SENSOR_C_PIN, "analog_input"},        // Pin 1 - Right sensor
+        {MOTOR_A_PIN, "digital_output"},             // Pin 20 - Motor A (Left)
+        {MOTOR_B_PIN, "digital_output"}              // Pin 19 - Motor B (Right)
+    };
+    gpio->initializePins(fullSystemPins);
+    
+    // Configure PWM for audio pin using ControlConfig values
+    gpio->configurePWMPin(AUDIO_PIN, config.feedback.audioFrequency, 8);
+    
+    // Configure I2C for screen (SDA=22, SCL=21)
+    gpio->configureI2C(LCD_DATA_PIN, LCD_CLK_PIN);
+    
+    // Configure PWM for motor pins using ControlConfig values
+    gpio->configurePWMPin(MOTOR_A_PIN, config.motor.motorFrequency, 8); // 8-bit resolution (0-255)
+    gpio->configurePWMPin(MOTOR_B_PIN, config.motor.motorFrequency, 8); // 8-bit resolution (0-255)
+    
+    // Initialize UserInterface
+    ui = new UserInterface();
+    
+    // Synchronize UserInterface button state with actual pin state
+    delay(10); // Allow pin to stabilize
+    ui->isButtonPressed(); // This will update internal state
+    
+    // Initialize speaker and screen directly
+    speakerBegin(AUDIO_PIN, 2, 10, config.feedback.audioVolume);
+    screenBegin(LCD_DATA_PIN, LCD_CLK_PIN);
     
     // Initialize sensors using ControlConfig thresholds
     int sensorThreshold = (config.sensors.blackThreshold + config.sensors.whiteThreshold) / 2;
@@ -848,17 +1074,42 @@ void setupUIAVSensorsMotorsTest() {
     lineDetector = new LineDetector(*sensorLeft, *sensorCenter, *sensorRight, 
                                    config.sensors.blackThreshold, config.sensors.whiteThreshold);
     
+    // Initialize Motor objects (uses Motor.cpp)
+    motorA = new Motor(MOTOR_A_PIN);  // Left motor
+    motorB = new Motor(MOTOR_B_PIN);  // Right motor
+    
+    motorA->initialize();
+    motorB->initialize();
+    
+    // Set minimum start PWM to avoid dead zone
+    motorA->setMinimumStartPWM(50);
+    motorB->setMinimumStartPWM(50);
+    
     testStartTime = millis();
+    testPhase = 0;
     systemOn = false;
     
+    // Initialize screen to show STOP when system is OFF
+    showDirection(0);  // Display "STOP" to indicate system is off initially
+    
     Serial.println("FULL LINE-FOLLOWING SYSTEM READY");
-    Serial.println("Press button to toggle complete autonomous operation...");
-    Serial.println("When ON: Full line-following with motors + AV feedback");
-    Serial.println("When OFF: Motors stop immediately, sensors + AV monitor only");
-    Serial.println("System currently: OFF - SAFE");
+    Serial.println("Press button to toggle operation...");
+    Serial.println("When ON: Full line-following with motors + AV feedback every 5 seconds");
+    Serial.println("When OFF: Motors stop immediately, audio stops, screen shows STOP");
+    Serial.printf("Button: Pin %d | Speaker: Pin %d | Screen: SDA=%d, SCL=%d\n", 
+                  USER_BUTTON_PIN, AUDIO_PIN, LCD_DATA_PIN, LCD_CLK_PIN);
+    Serial.printf("Sensors: L:%d C:%d R:%d (Thresholds: Black<%d, White>%d)\n",
+                  PHOTO_SENSOR_A_PIN, PHOTO_SENSOR_B_PIN, PHOTO_SENSOR_C_PIN,
+                  config.sensors.blackThreshold, config.sensors.whiteThreshold);
+    Serial.printf("Motors: Left=%d Right=%d (Base Speed: %d%%)\n",
+                  MOTOR_A_PIN, MOTOR_B_PIN, config.motor.baseSpeed);
+    Serial.println("\nSystem currently: OFF - SAFE");
 }
 
 void runUIAVSensorsMotorsTest() {
+    // AV and motor update timing (5 second intervals when system is ON)
+    static unsigned long lastFullUpdate = 0;
+    
     // Check for button press every 50ms
     if (millis() - lastTestUpdate > 50) {
         
@@ -872,75 +1123,138 @@ void runUIAVSensorsMotorsTest() {
             Serial.println(systemOn ? "ACTIVE - AUTONOMOUS" : "STOPPED - SAFE");
             
             if (systemOn) {
-                Serial.println("  -> Complete line-following engaged - motors + AV active");
-                Serial.println("  -> WARNING: Robot will move autonomously!");
+                Serial.println("  -> Complete line-following engaged - sensors drive motors + AV");
+                Serial.println("  -> WARNING: Robot will move autonomously based on line position!");
+                lastFullUpdate = 0; // Force immediate sensor reading and response
             } else {
-                Serial.println("  -> Emergency stop - motors disabled, monitoring continues");
+                Serial.println("  -> Emergency stop - motors stopped, audio stopped, screen shows STOP");
+                
+                // Stop everything immediately
+                motorA->stop();
+                motorB->stop();
+                speakerStop();
+                showDirection(0);  // Display "STOP"
+                
+                Serial.printf("  -> Motor A: Speed=%d%%, Running=%s\n",
+                             motorA->getCurrentSpeed(), motorA->isRunning() ? "Yes" : "No");
+                Serial.printf("  -> Motor B: Speed=%d%%, Running=%s\n",
+                             motorB->getCurrentSpeed(), motorB->isRunning() ? "Yes" : "No");
             }
         }
         
         lastTestUpdate = millis();
     }
     
-    // Full system operation every 100ms for responsive control
-    static unsigned long lastSystemUpdate = 0;
-    if (millis() - lastSystemUpdate > 100) {
+    // Full system operation (sensors -> motors + AV) every 5 seconds when system is ON
+    if (systemOn && millis() - lastFullUpdate > 5000) {
         
         // Get raw sensor readings
         int leftRaw = sensorLeft->readRaw();
         int centerRaw = sensorCenter->readRaw();
         int rightRaw = sensorRight->readRaw();
         
+        // Get configuration instance for thresholds
+        ControlConfig& config = ControlConfig::getInstance();
+        
+        // Determine what each sensor detects (BLACK or WHITE)
+        const char* leftDetection = (leftRaw < config.sensors.blackThreshold) ? "BLACK" : 
+                                   (leftRaw > config.sensors.whiteThreshold) ? "WHITE" : "GRAY";
+        const char* centerDetection = (centerRaw < config.sensors.blackThreshold) ? "BLACK" : 
+                                     (centerRaw > config.sensors.whiteThreshold) ? "WHITE" : "GRAY";
+        const char* rightDetection = (rightRaw < config.sensors.blackThreshold) ? "BLACK" : 
+                                    (rightRaw > config.sensors.whiteThreshold) ? "WHITE" : "GRAY";
+        
         // Get LineDetector analysis
         LineState lineState = lineDetector->detectLineState();
         float linePosition = lineDetector->calculateLinePosition();
         
-        // Display sensor readings
-        Serial.printf("Sensors [L:%4d C:%4d R:%4d] | ", leftRaw, centerRaw, rightRaw);
-        
-        // Display line state and system response
+        // Map LineState to motor commands and AV feedback
         const char* stateStr = "UNKNOWN";
-        const char* motorStr = "Stop";
         const char* avStr = "None";
+        int direction = 0; // 0=STOP, 1=FORWARD, 2=LEFT, 3=RIGHT
+        int leftMotorSpeed = 0;
+        int rightMotorSpeed = 0;
         
         switch (lineState) {
             case LineState::ON_LINE:
                 stateStr = "ON_LINE";
-                motorStr = "L:150 R:150";
                 avStr = "Forward";
+                direction = 1; // FORWARD
+                leftMotorSpeed = 50;   // Base speed 50%
+                rightMotorSpeed = 50;  // Base speed 50%
                 break;
             case LineState::TURN_LEFT:
                 stateStr = "TURN_LEFT";
-                motorStr = "L:100 R:150";
-                avStr = "Left";
+                avStr = "Left Turn";
+                direction = 2; // LEFT
+                leftMotorSpeed = 0;    // Stop left motor (pivot)
+                rightMotorSpeed = 50;  // Right motor at 50%
                 break;
             case LineState::TURN_RIGHT:
                 stateStr = "TURN_RIGHT";
-                motorStr = "L:150 R:100";
-                avStr = "Right";
+                avStr = "Right Turn";
+                direction = 3; // RIGHT
+                leftMotorSpeed = 50;   // Left motor at 50%
+                rightMotorSpeed = 0;   // Stop right motor (pivot)
                 break;
             case LineState::OFF_LINE:
                 stateStr = "OFF_LINE";
-                motorStr = "L:0 R:0";
-                avStr = "Stop";
+                avStr = "Stop (Off Line)";
+                direction = 0; // STOP
+                leftMotorSpeed = 0;    // Stop both motors
+                rightMotorSpeed = 0;
                 break;
             case LineState::UNKNOWN:
                 stateStr = "UNKNOWN";
-                motorStr = "L:0 R:0";
-                avStr = "None";
+                avStr = "Stop (Unknown)";
+                direction = 0; // STOP
+                leftMotorSpeed = 0;    // Stop both motors
+                rightMotorSpeed = 0;
                 break;
         }
         
-        if (systemOn) {
-            Serial.printf("System ON - LineState: %s -> Motors: %s [AV: %s]\n", stateStr, motorStr, avStr);
-            
-            // Update control system for full operation (sensors -> FSM -> motors + AV)
-            controlSystem->update();
-        } else {
-            Serial.printf("System OFF - LineState: %s (motors disabled, monitoring only)\n", stateStr);
-        }
+        // Display comprehensive sensor and response information
+        Serial.println("\n=== FULL SYSTEM UPDATE (SENSORS -> MOTORS + AV) ===");
+        Serial.printf("Raw Values -> Left: %4d | Center: %4d | Right: %4d\n", 
+                     leftRaw, centerRaw, rightRaw);
+        Serial.printf("Detection  -> Left: %-5s | Center: %-5s | Right: %-5s\n",
+                     leftDetection, centerDetection, rightDetection);
+        Serial.printf("Line State: %s\n", stateStr);
+        Serial.printf("Line Position: %.3f (normalized -1.0 to +1.0)\n", linePosition);
+        Serial.printf("Motor Command: Left=%d%%, Right=%d%%\n", leftMotorSpeed, rightMotorSpeed);
+        Serial.printf("AV Feedback: %s (direction=%d)\n", avStr, direction);
         
-        lastSystemUpdate = millis();
+        // Apply motor commands using Motor class
+        motorA->setSpeed(leftMotorSpeed);   // Left motor (Motor A)
+        motorB->setSpeed(rightMotorSpeed);  // Right motor (Motor B)
+        
+        Serial.printf("  -> Motor A (Left):  Speed=%d%%, PWM=%d, Running=%s\n",
+                     motorA->getCurrentSpeed(), motorA->getCurrentPWM(), 
+                     motorA->isRunning() ? "Yes" : "No");
+        Serial.printf("  -> Motor B (Right): Speed=%d%%, PWM=%d, Running=%s\n",
+                     motorB->getCurrentSpeed(), motorB->getCurrentPWM(),
+                     motorB->isRunning() ? "Yes" : "No");
+        
+        // Update audio and visual feedback based on detected line state
+        startMelodyForDirection(direction);  // Audio feedback
+        showDirection(direction);            // Visual feedback
+        
+        Serial.println("  -> Screen updated & audio playing");
+        Serial.println("====================================================\n");
+        
+        lastFullUpdate = millis();
+    }
+    
+    // Show periodic heartbeat when system is on (every 2 seconds between full updates)
+    static unsigned long lastHeartbeat = 0;
+    if (systemOn && millis() - lastHeartbeat > 2000) {
+        Serial.println("Full system active - autonomous line-following in progress...");
+        lastHeartbeat = millis();
+    }
+    
+    // Keep servicing the melody to maintain audio playback
+    if (systemOn) {
+        serviceMelody();
     }
 }
 
