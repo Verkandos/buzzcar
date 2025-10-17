@@ -6,7 +6,7 @@
 PhotoSensor::PhotoSensor() 
     : pinAnalog(-1), lineThreshold(512), currentRawValue(0),
      calibrationMin(4095), calibrationMax(0), isCalibrated(false) {
-        // Default constructor
+        // Default constructor;
 }
 
 PhotoSensor::PhotoSensor(int pin, int threshold) 

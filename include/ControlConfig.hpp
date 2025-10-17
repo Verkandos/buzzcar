@@ -42,7 +42,7 @@ class ControlConfig {
 
         // === LINE DETECTION CONFIGURATION ===
         struct LineSettings {
-            int blackThreshold = 3000;    // ADC threshold for line detection (0-4095) LOOK AT FILES for 
+            int blackThreshold = 3000;    // ADC threshold for line detection (0-4095) LOOK AT FILES for;
             int whiteThreshold = 100; // ADC threshold for white line detection (0-4095)
             int sensorReadInterval = 10; // Sensor read interval in milliseconds
             int samplingCount = 8;      // Number of samples for averaging

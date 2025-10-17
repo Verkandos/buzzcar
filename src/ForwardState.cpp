@@ -8,7 +8,7 @@
 
 ForwardState::ForwardState() : State("ForwardState"), baseSpeed(50), pidController(2.0f, 0.1f, 1.0f) {
     // Initialize with 50% base speed and reasonable PID gains
-    pidController.setOutputLimits(-25.0f, 25.0f); // Limit PID output to +/- 50
+    pidController.setOutputLimits(-25.0f, 25.0f); // Limit PID output to +/- 50;
 }
 
 void ForwardState::onEntry(ControlSubsystem* context) {

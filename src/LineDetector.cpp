@@ -62,7 +62,7 @@ float LineDetector::calculateLinePosition() const {
     
     // Get thresholds from configuration; check for acutal values as they may differ from below
     ControlConfig& config = ControlConfig::getInstance();
-    int blackThreshold = config.sensors.blackThreshold; // Default 3000
+    int blackThreshold = config.sensors.blackThreshold; // Default 3000;
     int whiteThreshold = config.sensors.whiteThreshold; // Default 100 
 
     // Normallize each sensor reading to 0.0 (white) - 1.0 (black)
