@@ -12,13 +12,13 @@ LineDetector::LineDetector(PhotoSensor& left, PhotoSensor& center, PhotoSensor& 
 bool LineDetector::isSensorOnWhite(PhotoSensor& sensor) const {
     ControlConfig& config = ControlConfig::getInstance();
     int reading = sensor.readRaw();
-    return reading > config.sensors.whiteThreshold;
+    return reading < config.sensors.whiteThreshold; // Low values (0-100) = white
 }
 
 bool LineDetector::isSensorOnBlack(PhotoSensor& sensor) const {
     ControlConfig& config = ControlConfig::getInstance();
     int reading = sensor.readRaw();
-    return reading < config.sensors.blackThreshold;
+    return reading > config.sensors.blackThreshold; // High values (3000+) = black
 }
 
 LineState LineDetector::detectLineState() {
@@ -55,23 +55,29 @@ LineState LineDetector::detectLineState() {
 }
 
 float LineDetector::calculateLinePosition() const {
-    // Read center sensor for PID positioning
-    int valueC = sensorC.readRaw(); // Center sensor
+    // Read all three sensors
+    int leftRaw = sensorL.readRaw();   // Left sensor
+    int centerRaw = sensorC.readRaw(); // Center sensor
+    int rightRaw = sensorR.readRaw(); // Right sensor
     
-    // Define calibration range
-    const int OptimalBlack = (blackThreshold + whiteThreshold) / 4; // Midway to black
-    const int range = whiteThreshold - blackThreshold;
+    // Get thresholds from configuration; check for acutal values as they may differ from below
+    ControlConfig& config = ControlConfig::getInstance();
+    int blackThreshold = config.sensors.blackThreshold; // Default 3000
+    int whiteThreshold = config.sensors.whiteThreshold; // Default 100 
 
-    // Calculate position error
-    // Negative error = mid sensor too far right (line appears to left)
-    // Positive error = mid sensor too far left (line appears to right)
-    float positionError = (float)(valueC - OptimalBlack) / ((float)(range) / 2.0);
+    // Normallize each sensor reading to 0.0 (white) - 1.0 (black)
+    float lnorm = constrain(map(leftRaw, whiteThreshold, blackThreshold, 0, 1000), 0, 1000) / 1000.0f;
+    float cnorm = constrain(map(centerRaw, whiteThreshold, blackThreshold, 0, 1000), 0, 1000) / 1000.0f;
+    float rnorm = constrain(map(leftRaw, whiteThreshold, blackThreshold, 0, 1000), 0, 1000) / 1000.0f;
 
-    // Constrain to -1.0 to 1.0
-    if (positionError > 1.0) positionError = 1.0;
-    if (positionError < -1.0) positionError = -1.0;
+    // Calculate total "line darkness" 
+    float totalWeight = lnorm + cnorm + rnorm;
+    
+    float position = (-1.0f * lnorm + 0.0f * cnorm + 1.0f * rnorm) / (totalWeight);
 
-    return positionError;
+    position = constrain(position, -1.0f, 1.0f);
+
+    return position;
 }
 
 void LineDetector::setThresholds(int blackThreshold, int whiteThreshold) {
