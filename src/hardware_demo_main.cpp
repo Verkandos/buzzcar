@@ -39,11 +39,11 @@ const bool TEST_CONTROL_POWER = false;     // Control + Power integration
 // PHASE II: Progressive Full Integration Tests - Enable ONLY ONE test at a time
 const bool TEST_UI_AV = false;           // Control + UI + Speaker + Screen (AV)
 const bool TEST_UI_AV_SENSORS = false;   // Control + UI + AV + Sensors
-const bool TEST_UI_AV_SENSORS_MOTORS = false; // Control + UI + AV + Sensors + Motors
+const bool TEST_UI_AV_SENSORS_MOTORS = true; // Control + UI + AV + Sensors + Motors
 
 // TEST 5 (SENSORS) SUB-MODE CONFIGURATION - Enable ONLY ONE mode when TEST_CONTROL_SENSORS = true
-const bool SENSOR_MODE_RAW_READINGS = false;      // Show raw sensor values every 3 seconds
-const bool SENSOR_MODE_LINE_DETECTION = true;    // Show LineDetection states with setup/display cycles
+const bool SENSOR_MODE_RAW_READINGS = true;      // Show raw sensor values every 3 seconds
+const bool SENSOR_MODE_LINE_DETECTION = false;    // Show LineDetection states with setup/display cycles
 
 // Global test objects
 GPIOManager* gpio = nullptr;
@@ -533,7 +533,7 @@ void runControlSensorsTest() {
         // MODE 1: Raw sensor readings every 3 seconds
         if (millis() - lastTestUpdate > 3000) {
             
-            // Get raw sensor readings
+            // Get raw sensor readings 
             int leftRaw = sensorLeft->readRaw();
             int centerRaw = sensorCenter->readRaw();
             int rightRaw = sensorRight->readRaw();
@@ -573,7 +573,7 @@ void runControlSensorsTest() {
             static unsigned long lastReading = 0;
             if (millis() - lastReading > 500) {
                 
-                // Get raw sensor readings
+                // Get raw sensor readings 
                 int leftRaw = sensorLeft->readRaw();
                 int centerRaw = sensorCenter->readRaw();
                 int rightRaw = sensorRight->readRaw();
@@ -582,12 +582,12 @@ void runControlSensorsTest() {
                 ControlConfig& config = ControlConfig::getInstance();
                 
                 // Determine what each sensor detects (BLACK or WHITE)
-                const char* leftDetection = (leftRaw < config.sensors.blackThreshold) ? "BLACK" : 
-                                           (leftRaw > config.sensors.whiteThreshold) ? "WHITE" : "GRAY";
-                const char* centerDetection = (centerRaw < config.sensors.blackThreshold) ? "BLACK" : 
-                                             (centerRaw > config.sensors.whiteThreshold) ? "WHITE" : "GRAY";
-                const char* rightDetection = (rightRaw < config.sensors.blackThreshold) ? "BLACK" : 
-                                            (rightRaw > config.sensors.whiteThreshold) ? "WHITE" : "GRAY";
+                const char* leftDetection = (leftRaw > config.sensors.blackThreshold) ? "BLACK" : 
+                                           (leftRaw < config.sensors.whiteThreshold) ? "WHITE" : "GRAY";
+                const char* centerDetection = (centerRaw > config.sensors.blackThreshold) ? "BLACK" : 
+                                             (centerRaw < config.sensors.whiteThreshold) ? "WHITE" : "GRAY";
+                const char* rightDetection = (rightRaw > config.sensors.blackThreshold) ? "BLACK" : 
+                                            (rightRaw < config.sensors.whiteThreshold) ? "WHITE" : "GRAY";
                 
                 // Get LineDetector analysis
                 LineState lineState = lineDetector->detectLineState();
@@ -1028,9 +1028,9 @@ void setupUIAVSensorsMotorsTest() {
     // Configure button, audio, screen, sensor, and motor pins
     std::map<int, std::string> fullSystemPins = {
         {USER_BUTTON_PIN, "digital_input_pullup"},  // Pin 11 - User button
-        {AUDIO_PIN, "digital_output"},               // Pin 23 - Speaker
-        {LCD_DATA_PIN, "digital_output"},            // Pin 22 - Screen SDA
-        {LCD_CLK_PIN, "digital_output"},             // Pin 21 - Screen SCL
+        // {AUDIO_PIN, "digital_output"},               // Pin 23 - Speaker
+        // {LCD_DATA_PIN, "digital_output"},            // Pin 22 - Screen SDA
+        // {LCD_CLK_PIN, "digital_output"},             // Pin 21 - Screen SCL
         {PHOTO_SENSOR_A_PIN, "analog_input"},        // Pin 3 - Left sensor
         {PHOTO_SENSOR_B_PIN, "analog_input"},        // Pin 2 - Center sensor  
         {PHOTO_SENSOR_C_PIN, "analog_input"},        // Pin 1 - Right sensor
@@ -1040,10 +1040,10 @@ void setupUIAVSensorsMotorsTest() {
     gpio->initializePins(fullSystemPins);
     
     // Configure PWM for audio pin using ControlConfig values
-    gpio->configurePWMPin(AUDIO_PIN, config.feedback.audioFrequency, 8);
+    // gpio->configurePWMPin(AUDIO_PIN, config.feedback.audioFrequency, 8);
     
     // Configure I2C for screen (SDA=22, SCL=21)
-    gpio->configureI2C(LCD_DATA_PIN, LCD_CLK_PIN);
+    // gpio->configureI2C(LCD_DATA_PIN, LCD_CLK_PIN);
     
     // Configure PWM for motor pins using ControlConfig values
     gpio->configurePWMPin(MOTOR_A_PIN, config.motor.motorFrequency, 8); // 8-bit resolution (0-255)
@@ -1057,8 +1057,8 @@ void setupUIAVSensorsMotorsTest() {
     ui->isButtonPressed(); // This will update internal state
     
     // Initialize speaker and screen directly
-    speakerBegin(AUDIO_PIN, 2, 10, config.feedback.audioVolume);
-    screenBegin(LCD_DATA_PIN, LCD_CLK_PIN);
+    // speakerBegin(AUDIO_PIN, 2, 10, config.feedback.audioVolume);
+    // screenBegin(LCD_DATA_PIN, LCD_CLK_PIN);
     
     // Initialize sensors using ControlConfig thresholds
     int sensorThreshold = (config.sensors.blackThreshold + config.sensors.whiteThreshold) / 2;
@@ -1132,8 +1132,8 @@ void runUIAVSensorsMotorsTest() {
                 // Stop everything immediately
                 motorA->stop();
                 motorB->stop();
-                speakerStop();
-                showDirection(0);  // Display "STOP"
+                // speakerStop();
+                // showDirection(0);  // Display "STOP"
                 
                 Serial.printf("  -> Motor A: Speed=%d%%, Running=%s\n",
                              motorA->getCurrentSpeed(), motorA->isRunning() ? "Yes" : "No");
@@ -1171,7 +1171,7 @@ void runUIAVSensorsMotorsTest() {
         // Map LineState to motor commands and AV feedback
         const char* stateStr = "UNKNOWN";
         const char* avStr = "None";
-        int direction = 0; // 0=STOP, 1=FORWARD, 2=LEFT, 3=RIGHT
+        // int direction = 0; // 0=STOP, 1=FORWARD, 2=LEFT, 3=RIGHT
         int leftMotorSpeed = 0;
         int rightMotorSpeed = 0;
         
@@ -1179,35 +1179,35 @@ void runUIAVSensorsMotorsTest() {
             case LineState::ON_LINE:
                 stateStr = "ON_LINE";
                 avStr = "Forward";
-                direction = 1; // FORWARD
+                // direction = 1; // FORWARD
                 leftMotorSpeed = 50;   // Base speed 50%
                 rightMotorSpeed = 50;  // Base speed 50%
                 break;
             case LineState::TURN_LEFT:
                 stateStr = "TURN_LEFT";
                 avStr = "Left Turn";
-                direction = 2; // LEFT
+                // direction = 2; // LEFT
                 leftMotorSpeed = 0;    // Stop left motor (pivot)
                 rightMotorSpeed = 50;  // Right motor at 50%
                 break;
             case LineState::TURN_RIGHT:
                 stateStr = "TURN_RIGHT";
                 avStr = "Right Turn";
-                direction = 3; // RIGHT
+                // direction = 3; // RIGHT
                 leftMotorSpeed = 50;   // Left motor at 50%
                 rightMotorSpeed = 0;   // Stop right motor (pivot)
                 break;
             case LineState::OFF_LINE:
                 stateStr = "OFF_LINE";
                 avStr = "Stop (Off Line)";
-                direction = 0; // STOP
+                // direction = 0; // STOP
                 leftMotorSpeed = 0;    // Stop both motors
                 rightMotorSpeed = 0;
                 break;
             case LineState::UNKNOWN:
                 stateStr = "UNKNOWN";
                 avStr = "Stop (Unknown)";
-                direction = 0; // STOP
+                // direction = 0; // STOP
                 leftMotorSpeed = 0;    // Stop both motors
                 rightMotorSpeed = 0;
                 break;
@@ -1222,7 +1222,7 @@ void runUIAVSensorsMotorsTest() {
         Serial.printf("Line State: %s\n", stateStr);
         Serial.printf("Line Position: %.3f (normalized -1.0 to +1.0)\n", linePosition);
         Serial.printf("Motor Command: Left=%d%%, Right=%d%%\n", leftMotorSpeed, rightMotorSpeed);
-        Serial.printf("AV Feedback: %s (direction=%d)\n", avStr, direction);
+        // Serial.printf("AV Feedback: %s (direction=%d)\n", avStr, direction);
         
         // Apply motor commands using Motor class
         motorA->setSpeed(leftMotorSpeed);   // Left motor (Motor A)
@@ -1236,8 +1236,8 @@ void runUIAVSensorsMotorsTest() {
                      motorB->isRunning() ? "Yes" : "No");
         
         // Update audio and visual feedback based on detected line state
-        startMelodyForDirection(direction);  // Audio feedback
-        showDirection(direction);            // Visual feedback
+        // startMelodyForDirection(direction);  // Audio feedback
+        // showDirection(direction);            // Visual feedback
         
         Serial.println("  -> Screen updated & audio playing");
         Serial.println("====================================================\n");
@@ -1253,9 +1253,9 @@ void runUIAVSensorsMotorsTest() {
     }
     
     // Keep servicing the melody to maintain audio playback
-    if (systemOn) {
-        serviceMelody();
-    }
+    // if (systemOn) {
+    //     serviceMelody();
+    // }
 }
 
 // MAIN SETUP AND LOOP
