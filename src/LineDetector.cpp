@@ -12,13 +12,13 @@ LineDetector::LineDetector(PhotoSensor& left, PhotoSensor& center, PhotoSensor& 
 bool LineDetector::isSensorOnWhite(PhotoSensor& sensor) const {
     ControlConfig& config = ControlConfig::getInstance();
     int reading = sensor.readRaw();
-    return reading < config.sensors.whiteThreshold; // Low values (0-100) = white
+    return reading > config.sensors.whiteThreshold;
 }
 
 bool LineDetector::isSensorOnBlack(PhotoSensor& sensor) const {
     ControlConfig& config = ControlConfig::getInstance();
     int reading = sensor.readRaw();
-    return reading > config.sensors.blackThreshold; // High values (3000+) = black
+    return reading < config.sensors.blackThreshold;
 }
 
 LineState LineDetector::detectLineState() {
@@ -70,14 +70,11 @@ float LineDetector::calculateLinePosition() const {
     float cnorm = constrain(map(centerRaw, whiteThreshold, blackThreshold, 0, 1000), 0, 1000) / 1000.0f;
     float rnorm = constrain(map(leftRaw, whiteThreshold, blackThreshold, 0, 1000), 0, 1000) / 1000.0f;
 
-    // Calculate total "line darkness" 
-    float totalWeight = lnorm + cnorm + rnorm;
-    
-    float position = (-1.0f * lnorm + 0.0f * cnorm + 1.0f * rnorm) / (totalWeight);
+    // Constrain to -1.0 to 1.0
+    if (positionError > 1.0) positionError = 1.0;
+    if (positionError < -1.0) positionError = -1.0;
 
-    position = constrain(position, -1.0f, 1.0f);
-
-    return position;
+    return positionError;
 }
 
 void LineDetector::setThresholds(int blackThreshold, int whiteThreshold) {

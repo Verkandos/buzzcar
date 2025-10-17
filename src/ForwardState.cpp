@@ -2,9 +2,6 @@
 #include "ForwardState.hpp"
 #include "ControlSubsystem.hpp"
 #include "ControlConfig.hpp"
-#include "Event.hpp"
-#include "LineDetector.hpp"
-#include "FSM.hpp"
 
 ForwardState::ForwardState() : State("ForwardState"), baseSpeed(50), pidController(2.0f, 0.1f, 1.0f) {
     // Initialize with 50% base speed and reasonable PID gains
@@ -23,36 +20,16 @@ void ForwardState::onEntry(ControlSubsystem* context) {
 }
 
 void ForwardState::onUpdate(ControlSubsystem* context) {
-    ControlConfig& config = ControlConfig::getInstance();
-
     // Get line position from LineDetector (0.0 = centered, negative = line to left, positive = line to right)
     float linePosition = context->getLineDetector()->calculateLinePosition();
-    LineState lineState = context->getLineDetector()->detectLineState();
-    // Sharp turn detection
-    if (lineState == LineState::TURN_LEFT) {
-        Serial.println("Sharp left turn detected. Transitioning to TurnState.");
-        context->getFSM()->handleEvent(Event(EventType::TURN_LEFT));
-        return;
-    }
-    else if (lineState == LineState::TURN_RIGHT) {
-        Serial.println("Sharp right turn detected. Transitioning to TurnState.");
-        context->getFSM()->handleEvent(Event(EventType::TURN_RIGHT));
-        return;
-    }
-    else if (lineState == LineState::OFF_LINE) {
-        Serial.println("No line detected. Transitioning to StopState.");
-        context->getFSM()->handleEvent(Event(EventType::OFF_LINE));
-        return;
-    }
-
 
     // PID setpoint is 0.0 (we want to stay centered on the line)
     float pidOutput = pidController.compute(0.0f, linePosition);
 
     // Apply differential steering correction
     // If line is to the left (negative), we need to turn left
-    int leftMotorSpeed = config.motor.baseSpeed - (int)pidOutput;
-    int rightMotorSpeed = config.motor.baseSpeed + (int)pidOutput;
+    int leftMotorSpeed = baseSpeed - (int)pidOutput;
+    int rightMotorSpeed = baseSpeed + (int)pidOutput;
 
     // Ensure motor speeds stay within PWM range (0-100%)
     leftMotorSpeed = constrain(leftMotorSpeed, 0, 100);
