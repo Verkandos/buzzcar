@@ -8,10 +8,10 @@ struct Note { uint16_t freq; uint16_t dur_ms; };
 struct Melody { const Note* notes; uint8_t len; };
 
 //melodies played for each state
-static const Note MEL_STOP[]    = { {1200,120},{900,120},{700,160},{0,80} };
-static const Note MEL_FORWARD[] = { {784,120},{880,120},{988,140},{1047,220},{0,80} };
-static const Note MEL_LEFT[]    = { {659,90},{0,60},{659,90},{0,60},{523,180},{0,60} };
-static const Note MEL_RIGHT[]   = { {740,120},{932,120},{1175,140},{1109,160},{0,80} };
+static const Note MEL_STOP[]    = { {440, 400},{0,300} };    
+static const Note MEL_FORWARD[] = { {330,100},{392,100},{440,120},{554,200},{0,120} };
+static const Note MEL_LEFT[]    = { {392,90},{494,90},{392,160},{0,100} };
+static const Note MEL_RIGHT[]   = { {440,90},{523,90},{440,160},{0,100} };
 
 static const Melody MELODIES[] = {
   {MEL_STOP,    (uint8_t)(sizeof(MEL_STOP)/sizeof(Note))},
