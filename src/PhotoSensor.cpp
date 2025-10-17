@@ -1,6 +1,7 @@
 #include "Arduino.h"
 #include "PhotoSensor.hpp"
 #include "GPIOManager.hpp"
+#include "ControlConfig.hpp"
 
 PhotoSensor::PhotoSensor() 
     : pinAnalog(-1), lineThreshold(512), currentRawValue(0),
@@ -28,12 +29,24 @@ void PhotoSensor::initialize(int pin) {
 }
 
 int PhotoSensor::readRaw() {
+    ControlConfig& config = ControlConfig::getInstance();
     // Get raw ADC value from GPIOManager (no processing)
     if (pinAnalog == -1) return 0;
 
     // Use singleton instance
     GPIOManager& gpio = GPIOManager::getInstance();
-    currentRawValue = gpio.readAnalog(pinAnalog);
+    // currentRawValue = gpio.readAnalog(pinAnalog);
+    
+    // Multisampling: Take 8 samples and average to reduce noise
+    // ESP32-C6 ADC is sensitive to noise, multisampling helps mitigate this
+    long sum = 0;
+    
+    for (int i = 0; i < config.sensors.samplingCount; i++) {
+        sum += gpio.readAnalog(pinAnalog);
+        delayMicroseconds(10); // Small delay between samples 
+    }
+    
+    currentRawValue = sum / config.sensors.samplingCount;
     return currentRawValue;
 }
 
