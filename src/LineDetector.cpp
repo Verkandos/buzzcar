@@ -71,10 +71,9 @@ float LineDetector::calculateLinePosition() const {
     float rnorm = constrain(map(leftRaw, whiteThreshold, blackThreshold, 0, 1000), 0, 1000) / 1000.0f;
 
     // Constrain to -1.0 to 1.0
-    if (positionError > 1.0) positionError = 1.0;
-    if (positionError < -1.0) positionError = -1.0;
+    float position = (-1.0f * lnorm + 0.0f * cnorm + 1.0f * rnorm);
 
-    return positionError;
+    return constrain(position, -1.0f, 1.0f);
 }
 
 void LineDetector::setThresholds(int blackThreshold, int whiteThreshold) {
