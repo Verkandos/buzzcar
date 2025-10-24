@@ -1,9 +1,9 @@
 #include <Arduino.h>
 #include "UserInterface.hpp"
 #include "GPIOManager.hpp"
+#include "ControlConfig.hpp"
 
-
-UserInterface::UserInterface() : pinButton(USER_BUTTON_PIN), turnedOn(false), lastButtonState(true), lastDebounceTime(0) {
+UserInterface::UserInterface() : pinButton(ControlConfig::getInstance().pins.userButton), turnedOn(false), lastButtonState(true), lastDebounceTime(0) {
     // Initialize lastButtonState to HIGH (unpressed state with pullup resistor)
 }
 
