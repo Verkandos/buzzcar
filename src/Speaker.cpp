@@ -35,6 +35,8 @@ static int            s_currentDir = 0;
 
 //used to set up duty cycle
 static void applyDuty(uint32_t duty) {
+  duty = constrain(duty, 0, 1023);
+  
   GPIOManager& gpio = GPIOManager::getInstance();
   gpio.writePWM(s_audioPin, duty);
 
@@ -71,7 +73,10 @@ void speakerBegin(uint8_t audioPin, uint8_t ledcChannel, uint8_t resolutionBits,
   s_maxDuty   = (1UL << s_resBits) - 1;
   if (dutyPercent > 100) dutyPercent = 100;
   s_playDuty  = (s_maxDuty * dutyPercent) / 100;
-
+  
+  // Ensure speaker starts completely silent
+  applyDuty(0);
+  delay(5);  // Let hardware settle
   // sets up ledc so that it can play tones
   // ledc_timer_config_t tcfg = {};
   // tcfg.speed_mode       = s_speedMode;
