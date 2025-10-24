@@ -29,7 +29,7 @@
 
 // PHASE I: Pairwise Integration Tests - Enable ONLY ONE test at a time
 const bool TEST_CONTROL_UI = false;        // Control + UI integration
-const bool TEST_CONTROL_SPEAKER = false;   // Control + Speaker integration  
+const bool TEST_CONTROL_SPEAKER = true;   // Control + Speaker integration  
 const bool TEST_CONTROL_SCREEN = false;    // Control + Screen integration
 const bool TEST_CONTROL_AUDIOVISUAL = false; // Control + Speaker + Screen integration
 const bool TEST_CONTROL_MOTORS = false;    // Control + Motors integration
@@ -39,10 +39,10 @@ const bool TEST_CONTROL_POWER = false;     // Control + Power integration
 // PHASE II: Progressive Full Integration Tests - Enable ONLY ONE test at a time
 const bool TEST_UI_AV = false;           // Control + UI + Speaker + Screen (AV)
 const bool TEST_UI_AV_SENSORS = false;   // Control + UI + AV + Sensors
-const bool TEST_UI_AV_SENSORS_MOTORS = true; // Control + UI + AV + Sensors + Motors
+const bool TEST_UI_AV_SENSORS_MOTORS = false; // Control + UI + AV + Sensors + Motors
 
 // TEST 5 (SENSORS) SUB-MODE CONFIGURATION - Enable ONLY ONE mode when TEST_CONTROL_SENSORS = true
-const bool SENSOR_MODE_RAW_READINGS = true;      // Show raw sensor values every 3 seconds
+const bool SENSOR_MODE_RAW_READINGS = false;      // Show raw sensor values every 3 seconds
 const bool SENSOR_MODE_LINE_DETECTION = false;    // Show LineDetection states with setup/display cycles
 
 // Global test objects
@@ -97,13 +97,16 @@ void setupControlUITest() {
     gpio = &GPIOManager::getInstance();
     Serial.println("GPIO Manager initialized");
     
+    // Get configuration instance
+    ControlConfig& config = ControlConfig::getInstance();
+    
     // Configure only the button pin
     std::map<int, std::string> buttonPin = {
-        {USER_BUTTON_PIN, "digital_input_pullup"} // Pin 11 - User button
+        {config.pins.userButton, "digital_input_pullup"}
     };
     gpio->initializePins(buttonPin);
     
-    Serial.printf("Button configured on pin %d\n", USER_BUTTON_PIN);
+    Serial.printf("Button configured on pin %d\n", config.pins.userButton);
     
     // Initialize UserInterface
     ui = new UserInterface();
@@ -160,22 +163,22 @@ void setupControlSpeakerTest() {
     
     // Configure audio pin
     std::map<int, std::string> speakerPins = {
-        {AUDIO_PIN, "digital_output"}    // Pin 23 - Speaker
+        {config.pins.audio, "digital_output"}
     };
     gpio->initializePins(speakerPins);
     
     // Configure PWM for audio pin using ControlConfig values
-    gpio->configurePWMPin(AUDIO_PIN, config.feedback.audioFrequency, 8); // From config, 8-bit resolution
+    gpio->configurePWMPin(config.pins.audio, config.feedback.audioFrequency, 10); // From config, 8-bit resolution
     
     // Initialize speaker directly
-    speakerBegin(AUDIO_PIN, 2, 10, config.feedback.audioVolume); // Use config volume
+    speakerBegin(config.pins.audio, 2, 10, config.feedback.audioVolume); // Use config volume
     
     testStartTime = millis();
     testPhase = 0;
     
     Serial.println("Starting direct speaker test cycle...");
     Serial.println("Listen for: STOP, FORWARD, LEFT, RIGHT melodies");
-    Serial.printf("Speaker configured on pin %d, volume %d%%\n", AUDIO_PIN, config.feedback.audioVolume);
+    Serial.printf("Speaker configured on pin %d, volume %d%%\n", config.pins.audio, config.feedback.audioVolume);
 }
 
 void runControlSpeakerTest() {
@@ -218,25 +221,28 @@ void setupControlScreenTest() {
     // Initialize GPIO Manager
     gpio = &GPIOManager::getInstance();
     
+    // Get configuration instance
+    ControlConfig& config = ControlConfig::getInstance();
+    
     // Configure I2C pins for screen
     std::map<int, std::string> screenPins = {
-        {LCD_DATA_PIN, "digital_output"}, // Pin 22 - Screen SDA
-        {LCD_CLK_PIN, "digital_output"}   // Pin 21 - Screen SCL
+        {config.pins.lcdData, "digital_output"},
+        {config.pins.lcdClk, "digital_output"}
     };
     gpio->initializePins(screenPins);
     
-    // Configure I2C for screen (SDA=22, SCL=21)
-    gpio->configureI2C(LCD_DATA_PIN, LCD_CLK_PIN);
+    // Configure I2C for screen
+    gpio->configureI2C(config.pins.lcdData, config.pins.lcdClk);
     
     // Initialize screen directly
-    screenBegin(LCD_DATA_PIN, LCD_CLK_PIN);
+    screenBegin(config.pins.lcdData, config.pins.lcdClk);
     
     testStartTime = millis();
     testPhase = 0;
     
     Serial.println("Starting direct screen test cycle...");
     Serial.println("Watch screen for: STOP, FORWARD, LEFT, RIGHT messages");
-    Serial.println("Screen I2C configured on SDA=22, SCL=21");
+    Serial.printf("Screen I2C configured on SDA=%d, SCL=%d\n", config.pins.lcdData, config.pins.lcdClk);
 }
 
 void runControlScreenTest() {
@@ -281,21 +287,21 @@ void setupControlAudioVisualTest() {
     
     // Configure both audio and screen pins
     std::map<int, std::string> avPins = {
-        {AUDIO_PIN, "digital_output"},    // Pin 23 - Speaker
-        {LCD_DATA_PIN, "digital_output"}, // Pin 22 - Screen SDA
-        {LCD_CLK_PIN, "digital_output"}   // Pin 21 - Screen SCL
+        {config.pins.audio, "digital_output"},
+        {config.pins.lcdData, "digital_output"},
+        {config.pins.lcdClk, "digital_output"}
     };
     gpio->initializePins(avPins);
     
     // Configure PWM for audio pin using ControlConfig values
-    gpio->configurePWMPin(AUDIO_PIN, config.feedback.audioFrequency, 8); // From config, 8-bit resolution
+    gpio->configurePWMPin(config.pins.audio, config.feedback.audioFrequency, 10); // From config, 8-bit resolution
     
-    // Configure I2C for screen (SDA=22, SCL=21)
-    gpio->configureI2C(LCD_DATA_PIN, LCD_CLK_PIN);
+    // Configure I2C for screen
+    gpio->configureI2C(config.pins.lcdData, config.pins.lcdClk);
     
     // Initialize both speaker and screen directly
-    speakerBegin(AUDIO_PIN, 2, 10, config.feedback.audioVolume); // Use config volume
-    screenBegin(LCD_DATA_PIN, LCD_CLK_PIN);
+    speakerBegin(config.pins.audio, 2, 10, config.feedback.audioVolume); // Use config volume
+    screenBegin(config.pins.lcdData, config.pins.lcdClk);
     
     testStartTime = millis();
     testPhase = 0;
@@ -303,7 +309,7 @@ void setupControlAudioVisualTest() {
     Serial.println("Starting combined audiovisual test cycle...");
     Serial.println("Watch screen AND listen for: STOP, FORWARD, LEFT, RIGHT");
     Serial.printf("Speaker: Pin %d, Volume %d%% | Screen: SDA=%d, SCL=%d\n", 
-                  AUDIO_PIN, config.feedback.audioVolume, LCD_DATA_PIN, LCD_CLK_PIN);
+                  config.pins.audio, config.feedback.audioVolume, config.pins.lcdData, config.pins.lcdClk);
 }
 
 void runControlAudioVisualTest() {
@@ -355,18 +361,18 @@ void setupControlMotorsTest() {
     
     // Configure motor pins
     std::map<int, std::string> motorPins = {
-        {MOTOR_A_PIN, "digital_output"},       // Pin 20 - Motor A
-        {MOTOR_B_PIN, "digital_output"}        // Pin 19 - Motor B
+        {config.pins.motorA, "digital_output"},
+        {config.pins.motorB, "digital_output"}
     };
     gpio->initializePins(motorPins);
     
     // Configure PWM for motor pins using ControlConfig values
-    gpio->configurePWMPin(MOTOR_A_PIN, config.motor.motorFrequency, 8); // 8-bit resolution (0-255)
-    gpio->configurePWMPin(MOTOR_B_PIN, config.motor.motorFrequency, 8); // 8-bit resolution (0-255)
+    gpio->configurePWMPin(config.pins.motorA, config.motor.motorFrequency, 8); // 8-bit resolution (0-255)
+    gpio->configurePWMPin(config.pins.motorB, config.motor.motorFrequency, 8); // 8-bit resolution (0-255)
     
     // Initialize Motor objects (uses Motor.cpp)
-    motorA = new Motor(MOTOR_A_PIN);
-    motorB = new Motor(MOTOR_B_PIN);
+    motorA = new Motor(config.pins.motorA);
+    motorB = new Motor(config.pins.motorB);
     
     motorA->initialize();
     motorB->initialize();
@@ -381,7 +387,7 @@ void setupControlMotorsTest() {
     Serial.println("Starting Motor class integration test...");
     Serial.println("Sequence: 50% -> 75% -> 99% -> STOP (3s each) -> Wait 5s -> Repeat");
     Serial.printf("Motors: A=%d, B=%d | Frequency: %dHz\n", 
-                  MOTOR_A_PIN, MOTOR_B_PIN, config.motor.motorFrequency);
+                  config.pins.motorA, config.pins.motorB, config.motor.motorFrequency);
     Serial.printf("Minimum Start PWM: %d \n", motorA->getMinimumStartPWM());
     Serial.println("Both motors will run together using Motor::setSpeed()");
 }
@@ -487,17 +493,17 @@ void setupControlSensorsTest() {
     
     // Configure sensor pins
     std::map<int, std::string> sensorPins = {
-        {PHOTO_SENSOR_A_PIN, "analog_input"},  // Pin 3 - Left sensor
-        {PHOTO_SENSOR_B_PIN, "analog_input"},  // Pin 2 - Center sensor  
-        {PHOTO_SENSOR_C_PIN, "analog_input"}   // Pin 1 - Right sensor
+        {config.pins.photoSensorA, "analog_input"},
+        {config.pins.photoSensorB, "analog_input"},
+        {config.pins.photoSensorC, "analog_input"}
     };
     gpio->initializePins(sensorPins);
     
     // Initialize sensors using ControlConfig thresholds
     int sensorThreshold = (config.sensors.blackThreshold + config.sensors.whiteThreshold) / 2; // Use midpoint
-    sensorLeft = new PhotoSensor(PHOTO_SENSOR_A_PIN, sensorThreshold);
-    sensorCenter = new PhotoSensor(PHOTO_SENSOR_B_PIN, sensorThreshold);
-    sensorRight = new PhotoSensor(PHOTO_SENSOR_C_PIN, sensorThreshold);
+    sensorLeft = new PhotoSensor(config.pins.photoSensorA, sensorThreshold);
+    sensorCenter = new PhotoSensor(config.pins.photoSensorB, sensorThreshold);
+    sensorRight = new PhotoSensor(config.pins.photoSensorC, sensorThreshold);
     
     sensorLeft->initialize();
     sensorCenter->initialize();
@@ -513,7 +519,7 @@ void setupControlSensorsTest() {
     
     Serial.println("Sensor pins configured:");
     Serial.printf("  Left: Pin %d | Center: Pin %d | Right: Pin %d\n", 
-                  PHOTO_SENSOR_A_PIN, PHOTO_SENSOR_B_PIN, PHOTO_SENSOR_C_PIN);
+                  config.pins.photoSensorA, config.pins.photoSensorB, config.pins.photoSensorC);
     Serial.printf("  Thresholds: Black < %d | White > %d | Detection threshold: %d\n",
                   config.sensors.blackThreshold, config.sensors.whiteThreshold, sensorThreshold);
     Serial.println();
@@ -707,18 +713,18 @@ void setupUIAVTest() {
     
     // Configure button, audio and screen pins
     std::map<int, std::string> uiAvPins = {
-        {USER_BUTTON_PIN, "digital_input_pullup"}, // Pin 11 - User button
-        {AUDIO_PIN, "digital_output"},              // Pin 23 - Speaker
-        {LCD_DATA_PIN, "digital_output"},           // Pin 22 - Screen SDA
-        {LCD_CLK_PIN, "digital_output"}             // Pin 21 - Screen SCL
+        {config.pins.userButton, "digital_input_pullup"},
+        {config.pins.audio, "digital_output"},
+        {config.pins.lcdData, "digital_output"},
+        {config.pins.lcdClk, "digital_output"}
     };
     gpio->initializePins(uiAvPins);
     
     // Configure PWM for audio pin using ControlConfig values
-    gpio->configurePWMPin(AUDIO_PIN, config.feedback.audioFrequency, 8);
+    gpio->configurePWMPin(config.pins.audio, config.feedback.audioFrequency, 10);
     
-    // Configure I2C for screen (SDA=22, SCL=21)
-    gpio->configureI2C(LCD_DATA_PIN, LCD_CLK_PIN);
+    // Configure I2C for screen
+    gpio->configureI2C(config.pins.lcdData, config.pins.lcdClk);
     
     // Initialize UserInterface
     ui = new UserInterface();
@@ -728,8 +734,8 @@ void setupUIAVTest() {
     ui->isButtonPressed(); // This will update internal state
     
     // Initialize both speaker and screen directly
-    speakerBegin(AUDIO_PIN, 2, 10, config.feedback.audioVolume);
-    screenBegin(LCD_DATA_PIN, LCD_CLK_PIN);
+    speakerBegin(config.pins.audio, 2, 10, config.feedback.audioVolume);
+    screenBegin(config.pins.lcdData, config.pins.lcdClk);
     
     testStartTime = millis();
     testPhase = 0;
@@ -742,7 +748,7 @@ void setupUIAVTest() {
     Serial.println("When ON: Cycles through STOP, FORWARD, LEFT, RIGHT with audio + screen");
     Serial.println("When OFF: Audio stops, screen shows 'STOP'");
     Serial.printf("Button: Pin %d | Speaker: Pin %d, Volume %d%% | Screen: SDA=%d, SCL=%d\n", 
-                  USER_BUTTON_PIN, AUDIO_PIN, config.feedback.audioVolume, LCD_DATA_PIN, LCD_CLK_PIN);
+                  config.pins.userButton, config.pins.audio, config.feedback.audioVolume, config.pins.lcdData, config.pins.lcdClk);
     Serial.println("System currently: OFF");
 }
 
@@ -831,21 +837,21 @@ void setupUIAVSensorsTest() {
     
     // Configure button, audio, screen, and sensor pins
     std::map<int, std::string> uiAvSensorPins = {
-        {USER_BUTTON_PIN, "digital_input_pullup"},  // Pin 11 - User button
-        {AUDIO_PIN, "digital_output"},               // Pin 23 - Speaker
-        {LCD_DATA_PIN, "digital_output"},            // Pin 22 - Screen SDA
-        {LCD_CLK_PIN, "digital_output"},             // Pin 21 - Screen SCL
-        {PHOTO_SENSOR_A_PIN, "analog_input"},        // Pin 3 - Left sensor
-        {PHOTO_SENSOR_B_PIN, "analog_input"},        // Pin 2 - Center sensor  
-        {PHOTO_SENSOR_C_PIN, "analog_input"}         // Pin 1 - Right sensor
+        {config.pins.userButton, "digital_input_pullup"},
+        {config.pins.audio, "digital_output"},
+        {config.pins.lcdData, "digital_output"},
+        {config.pins.lcdClk, "digital_output"},
+        {config.pins.photoSensorA, "analog_input"},
+        {config.pins.photoSensorB, "analog_input"},
+        {config.pins.photoSensorC, "analog_input"}
     };
     gpio->initializePins(uiAvSensorPins);
     
     // Configure PWM for audio pin using ControlConfig values
-    gpio->configurePWMPin(AUDIO_PIN, config.feedback.audioFrequency, 8);
+    gpio->configurePWMPin(config.pins.audio, config.feedback.audioFrequency, 10);
     
-    // Configure I2C for screen (SDA=22, SCL=21)
-    gpio->configureI2C(LCD_DATA_PIN, LCD_CLK_PIN);
+    // Configure I2C for screen
+    gpio->configureI2C(config.pins.lcdData, config.pins.lcdClk);
     
     // Initialize UserInterface
     ui = new UserInterface();
@@ -855,14 +861,14 @@ void setupUIAVSensorsTest() {
     ui->isButtonPressed(); // This will update internal state
     
     // Initialize speaker and screen directly
-    speakerBegin(AUDIO_PIN, 2, 10, config.feedback.audioVolume);
-    screenBegin(LCD_DATA_PIN, LCD_CLK_PIN);
+    speakerBegin(config.pins.audio, 2, 10, config.feedback.audioVolume);
+    screenBegin(config.pins.lcdData, config.pins.lcdClk);
     
     // Initialize sensors using ControlConfig thresholds
     int sensorThreshold = (config.sensors.blackThreshold + config.sensors.whiteThreshold) / 2;
-    sensorLeft = new PhotoSensor(PHOTO_SENSOR_A_PIN, sensorThreshold);
-    sensorCenter = new PhotoSensor(PHOTO_SENSOR_B_PIN, sensorThreshold);
-    sensorRight = new PhotoSensor(PHOTO_SENSOR_C_PIN, sensorThreshold);
+    sensorLeft = new PhotoSensor(config.pins.photoSensorA, sensorThreshold);
+    sensorCenter = new PhotoSensor(config.pins.photoSensorB, sensorThreshold);
+    sensorRight = new PhotoSensor(config.pins.photoSensorC, sensorThreshold);
     
     sensorLeft->initialize();
     sensorCenter->initialize();
@@ -883,9 +889,9 @@ void setupUIAVSensorsTest() {
     Serial.println("When ON: Sensors update AV feedback every 5 seconds based on line position");
     Serial.println("When OFF: Audio stops, screen shows 'STOP', sensors monitor only");
     Serial.printf("Button: Pin %d | Speaker: Pin %d | Screen: SDA=%d, SCL=%d\n", 
-                  USER_BUTTON_PIN, AUDIO_PIN, LCD_DATA_PIN, LCD_CLK_PIN);
+                  config.pins.userButton, config.pins.audio, config.pins.lcdData, config.pins.lcdClk);
     Serial.printf("Sensors: L:%d C:%d R:%d (Thresholds: Black<%d, White>%d)\n",
-                  PHOTO_SENSOR_A_PIN, PHOTO_SENSOR_B_PIN, PHOTO_SENSOR_C_PIN,
+                  config.pins.photoSensorA, config.pins.photoSensorB, config.pins.photoSensorC,
                   config.sensors.blackThreshold, config.sensors.whiteThreshold);
     Serial.println("System currently: OFF");
 }
@@ -1027,27 +1033,27 @@ void setupUIAVSensorsMotorsTest() {
     
     // Configure button, audio, screen, sensor, and motor pins
     std::map<int, std::string> fullSystemPins = {
-        {USER_BUTTON_PIN, "digital_input_pullup"},  // Pin 11 - User button
-        // {AUDIO_PIN, "digital_output"},               // Pin 23 - Speaker
-        // {LCD_DATA_PIN, "digital_output"},            // Pin 22 - Screen SDA
-        // {LCD_CLK_PIN, "digital_output"},             // Pin 21 - Screen SCL
-        {PHOTO_SENSOR_A_PIN, "analog_input"},        // Pin 3 - Left sensor
-        {PHOTO_SENSOR_B_PIN, "analog_input"},        // Pin 2 - Center sensor  
-        {PHOTO_SENSOR_C_PIN, "analog_input"},        // Pin 1 - Right sensor
-        {MOTOR_A_PIN, "digital_output"},             // Pin 20 - Motor A (Left)
-        {MOTOR_B_PIN, "digital_output"}              // Pin 19 - Motor B (Right)
+        {config.pins.userButton, "digital_input_pullup"},
+        {config.pins.audio, "digital_output"},
+        {config.pins.lcdData, "digital_output"},
+        {config.pins.lcdClk, "digital_output"},
+        {config.pins.photoSensorA, "analog_input"},
+        {config.pins.photoSensorB, "analog_input"},
+        {config.pins.photoSensorC, "analog_input"},
+        {config.pins.motorA, "digital_output"},
+        {config.pins.motorB, "digital_output"}
     };
     gpio->initializePins(fullSystemPins);
     
     // Configure PWM for audio pin using ControlConfig values
-    // gpio->configurePWMPin(AUDIO_PIN, config.feedback.audioFrequency, 8);
+    gpio->configurePWMPin(config.pins.audio, config.feedback.audioFrequency, 10);
     
-    // Configure I2C for screen (SDA=22, SCL=21)
-    // gpio->configureI2C(LCD_DATA_PIN, LCD_CLK_PIN);
+    // Configure I2C for screen
+    gpio->configureI2C(config.pins.lcdData, config.pins.lcdClk);
     
     // Configure PWM for motor pins using ControlConfig values
-    gpio->configurePWMPin(MOTOR_A_PIN, config.motor.motorFrequency, 8); // 8-bit resolution (0-255)
-    gpio->configurePWMPin(MOTOR_B_PIN, config.motor.motorFrequency, 8); // 8-bit resolution (0-255)
+    gpio->configurePWMPin(config.pins.motorA, config.motor.motorFrequency, 8); // 8-bit resolution (0-255)
+    gpio->configurePWMPin(config.pins.motorB, config.motor.motorFrequency, 8); // 8-bit resolution (0-255)
     
     // Initialize UserInterface
     ui = new UserInterface();
@@ -1057,14 +1063,14 @@ void setupUIAVSensorsMotorsTest() {
     ui->isButtonPressed(); // This will update internal state
     
     // Initialize speaker and screen directly
-    // speakerBegin(AUDIO_PIN, 2, 10, config.feedback.audioVolume);
-    // screenBegin(LCD_DATA_PIN, LCD_CLK_PIN);
+    speakerBegin(config.pins.audio, 2, 10, config.feedback.audioVolume);
+    screenBegin(config.pins.lcdData, config.pins.lcdClk);
     
     // Initialize sensors using ControlConfig thresholds
     int sensorThreshold = (config.sensors.blackThreshold + config.sensors.whiteThreshold) / 2;
-    sensorLeft = new PhotoSensor(PHOTO_SENSOR_A_PIN, sensorThreshold);
-    sensorCenter = new PhotoSensor(PHOTO_SENSOR_B_PIN, sensorThreshold);
-    sensorRight = new PhotoSensor(PHOTO_SENSOR_C_PIN, sensorThreshold);
+    sensorLeft = new PhotoSensor(config.pins.photoSensorA, sensorThreshold);
+    sensorCenter = new PhotoSensor(config.pins.photoSensorB, sensorThreshold);
+    sensorRight = new PhotoSensor(config.pins.photoSensorC, sensorThreshold);
     
     sensorLeft->initialize();
     sensorCenter->initialize();
@@ -1075,15 +1081,15 @@ void setupUIAVSensorsMotorsTest() {
                                    config.sensors.blackThreshold, config.sensors.whiteThreshold);
     
     // Initialize Motor objects (uses Motor.cpp)
-    motorA = new Motor(MOTOR_A_PIN);  // Left motor
-    motorB = new Motor(MOTOR_B_PIN);  // Right motor
+    motorA = new Motor(config.pins.motorA);  // Left motor
+    motorB = new Motor(config.pins.motorB);  // Right motor
     
     motorA->initialize();
     motorB->initialize();
     
     // Set minimum start PWM to avoid dead zone
-    motorA->setMinimumStartPWM(50);
-    motorB->setMinimumStartPWM(50);
+    motorA->setMinimumStartPWM(0); // Changed to 0
+    motorB->setMinimumStartPWM(0); // Changed to 0
     
     testStartTime = millis();
     testPhase = 0;
@@ -1097,12 +1103,12 @@ void setupUIAVSensorsMotorsTest() {
     Serial.println("When ON: Full line-following with motors + AV feedback every 5 seconds");
     Serial.println("When OFF: Motors stop immediately, audio stops, screen shows STOP");
     Serial.printf("Button: Pin %d | Speaker: Pin %d | Screen: SDA=%d, SCL=%d\n", 
-                  USER_BUTTON_PIN, AUDIO_PIN, LCD_DATA_PIN, LCD_CLK_PIN);
+                  config.pins.userButton, config.pins.audio, config.pins.lcdData, config.pins.lcdClk);
     Serial.printf("Sensors: L:%d C:%d R:%d (Thresholds: Black<%d, White>%d)\n",
-                  PHOTO_SENSOR_A_PIN, PHOTO_SENSOR_B_PIN, PHOTO_SENSOR_C_PIN,
+                  config.pins.photoSensorA, config.pins.photoSensorB, config.pins.photoSensorC,
                   config.sensors.blackThreshold, config.sensors.whiteThreshold);
     Serial.printf("Motors: Left=%d Right=%d (Base Speed: %d%%)\n",
-                  MOTOR_A_PIN, MOTOR_B_PIN, config.motor.baseSpeed);
+                  config.pins.motorA, config.pins.motorB, config.motor.baseSpeed);
     Serial.println("\nSystem currently: OFF - SAFE");
 }
 
@@ -1132,8 +1138,8 @@ void runUIAVSensorsMotorsTest() {
                 // Stop everything immediately
                 motorA->stop();
                 motorB->stop();
-                // speakerStop();
-                // showDirection(0);  // Display "STOP"
+                speakerStop();
+                showDirection(0);  // Display "STOP"
                 
                 Serial.printf("  -> Motor A: Speed=%d%%, Running=%s\n",
                              motorA->getCurrentSpeed(), motorA->isRunning() ? "Yes" : "No");
@@ -1157,12 +1163,12 @@ void runUIAVSensorsMotorsTest() {
         ControlConfig& config = ControlConfig::getInstance();
         
         // Determine what each sensor detects (BLACK or WHITE)
-        const char* leftDetection = (leftRaw < config.sensors.blackThreshold) ? "BLACK" : 
-                                   (leftRaw > config.sensors.whiteThreshold) ? "WHITE" : "GRAY";
-        const char* centerDetection = (centerRaw < config.sensors.blackThreshold) ? "BLACK" : 
-                                     (centerRaw > config.sensors.whiteThreshold) ? "WHITE" : "GRAY";
-        const char* rightDetection = (rightRaw < config.sensors.blackThreshold) ? "BLACK" : 
-                                    (rightRaw > config.sensors.whiteThreshold) ? "WHITE" : "GRAY";
+        const char* leftDetection = (leftRaw > config.sensors.blackThreshold) ? "BLACK" : 
+                                   (leftRaw < config.sensors.whiteThreshold) ? "WHITE" : "GRAY";
+        const char* centerDetection = (centerRaw > config.sensors.blackThreshold) ? "BLACK" : 
+                                     (centerRaw < config.sensors.whiteThreshold) ? "WHITE" : "GRAY";
+        const char* rightDetection = (rightRaw > config.sensors.blackThreshold) ? "BLACK" : 
+                                    (rightRaw < config.sensors.whiteThreshold) ? "WHITE" : "GRAY";
         
         // Get LineDetector analysis
         LineState lineState = lineDetector->detectLineState();
@@ -1171,7 +1177,7 @@ void runUIAVSensorsMotorsTest() {
         // Map LineState to motor commands and AV feedback
         const char* stateStr = "UNKNOWN";
         const char* avStr = "None";
-        // int direction = 0; // 0=STOP, 1=FORWARD, 2=LEFT, 3=RIGHT
+        int direction = 0; // 0=STOP, 1=FORWARD, 2=LEFT, 3=RIGHT
         int leftMotorSpeed = 0;
         int rightMotorSpeed = 0;
         
@@ -1179,35 +1185,35 @@ void runUIAVSensorsMotorsTest() {
             case LineState::ON_LINE:
                 stateStr = "ON_LINE";
                 avStr = "Forward";
-                // direction = 1; // FORWARD
+                direction = 1; // FORWARD
                 leftMotorSpeed = 50;   // Base speed 50%
                 rightMotorSpeed = 50;  // Base speed 50%
                 break;
             case LineState::TURN_LEFT:
                 stateStr = "TURN_LEFT";
                 avStr = "Left Turn";
-                // direction = 2; // LEFT
+                direction = 2; // LEFT
                 leftMotorSpeed = 0;    // Stop left motor (pivot)
                 rightMotorSpeed = 50;  // Right motor at 50%
                 break;
             case LineState::TURN_RIGHT:
                 stateStr = "TURN_RIGHT";
                 avStr = "Right Turn";
-                // direction = 3; // RIGHT
+                direction = 3; // RIGHT
                 leftMotorSpeed = 50;   // Left motor at 50%
                 rightMotorSpeed = 0;   // Stop right motor (pivot)
                 break;
             case LineState::OFF_LINE:
                 stateStr = "OFF_LINE";
                 avStr = "Stop (Off Line)";
-                // direction = 0; // STOP
+                direction = 0; // STOP
                 leftMotorSpeed = 0;    // Stop both motors
                 rightMotorSpeed = 0;
                 break;
             case LineState::UNKNOWN:
                 stateStr = "UNKNOWN";
                 avStr = "Stop (Unknown)";
-                // direction = 0; // STOP
+                direction = 0; // STOP
                 leftMotorSpeed = 0;    // Stop both motors
                 rightMotorSpeed = 0;
                 break;
@@ -1222,7 +1228,7 @@ void runUIAVSensorsMotorsTest() {
         Serial.printf("Line State: %s\n", stateStr);
         Serial.printf("Line Position: %.3f (normalized -1.0 to +1.0)\n", linePosition);
         Serial.printf("Motor Command: Left=%d%%, Right=%d%%\n", leftMotorSpeed, rightMotorSpeed);
-        // Serial.printf("AV Feedback: %s (direction=%d)\n", avStr, direction);
+        Serial.printf("AV Feedback: %s (direction=%d)\n", avStr, direction);
         
         // Apply motor commands using Motor class
         motorA->setSpeed(leftMotorSpeed);   // Left motor (Motor A)
@@ -1236,8 +1242,8 @@ void runUIAVSensorsMotorsTest() {
                      motorB->isRunning() ? "Yes" : "No");
         
         // Update audio and visual feedback based on detected line state
-        // startMelodyForDirection(direction);  // Audio feedback
-        // showDirection(direction);            // Visual feedback
+        startMelodyForDirection(direction);  // Audio feedback
+        showDirection(direction);            // Visual feedback
         
         Serial.println("  -> Screen updated & audio playing");
         Serial.println("====================================================\n");
@@ -1253,9 +1259,9 @@ void runUIAVSensorsMotorsTest() {
     }
     
     // Keep servicing the melody to maintain audio playback
-    // if (systemOn) {
-    //     serviceMelody();
-    // }
+    if (systemOn) {
+        serviceMelody();
+    }
 }
 
 // MAIN SETUP AND LOOP
