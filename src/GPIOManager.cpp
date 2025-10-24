@@ -99,34 +99,73 @@ void GPIOManager::configurePWMPin(int pin, int frequency, int resolution) {
     #ifdef ESP32
         // Use direct ESP32 LEDC driver instead of Arduino abstraction
         int channel;
-        if (pin == 19) channel = 0;      // Motor B - Channel 0
-        else if (pin == 20) channel = 1; // Motor A - Channel 1  
-        else if (pin == 23) channel = 2; // Audio - Channel 2
-        else channel = 3; // Default
+        int timer;
+        if (pin == 19 || pin == 0) {
+            channel = 0;      // Motor B - Channel 0 (pin 19 or 0)
+            timer = 0;
+        }
+        else if (pin == 20 || pin == 10) {
+            channel = 1;      // Motor A - Channel 1 (pin 20 or 10)
+            timer = 0;
+        }
+        else if (pin == 23 || pin == 18) {
+            channel = 2;      // Audio - Channel 2 (pin 23 or 18)
+            timer = 1;
+        }
+        else {
+            channel = 3;      // Default
+            timer = 2;
+        }
 
+        // Track which timers have been configured
+        static bool timer0_configured = false;
+        static bool timer1_configured = false;
+        static bool timer2_configured = false;
+        
+        // Only configure each timer once
+        bool needsTimerConfig = false;
+        if (timer == 0 && !timer0_configured) {
+            timer0_configured = true;
+            needsTimerConfig = true;
+            Serial.printf("[GPIOManager] Configuring Timer 0: %dHz, %d-bit\n", frequency, resolution);
+        } else if (timer == 1 && !timer1_configured) {
+            timer1_configured = true;
+            needsTimerConfig = true;
+            Serial.printf("[GPIOManager] Configuring Timer 1: %dHz, %d-bit\n", frequency, resolution);
+        } else if (timer == 2 && !timer2_configured) {
+            timer2_configured = true;
+            needsTimerConfig = true;
+            Serial.printf("[GPIOManager] Configuring Timer 2: %dHz, %d-bit\n", frequency, resolution);
+        } else {
+            Serial.printf("[GPIOManager] Timer %d already configured, skipping for pin %d\n", timer, pin);
+        }
         
         // Configure LEDC timer
-        ledc_timer_config_t timer_config = {
-            .speed_mode = LEDC_LOW_SPEED_MODE,
-            .duty_resolution = (ledc_timer_bit_t)resolution,
-            .timer_num = (ledc_timer_t)channel,
-            .freq_hz = (uint32_t)frequency,
-            .clk_cfg = LEDC_AUTO_CLK
-        };
-        ledc_timer_config(&timer_config);
+        if (needsTimerConfig) {
+            ledc_timer_config_t timer_config = {
+                .speed_mode = LEDC_LOW_SPEED_MODE,
+                .duty_resolution = (ledc_timer_bit_t)resolution,
+                .timer_num = (ledc_timer_t)timer,
+                .freq_hz = (uint32_t)frequency,
+                .clk_cfg = LEDC_AUTO_CLK
+            };
+            ledc_timer_config(&timer_config);
+        }
         
-        // Configure LEDC channel
+        // Configure LEDC channel (always configure for each pin)
         ledc_channel_config_t channel_config = {
             .gpio_num = pin,
             .speed_mode = LEDC_LOW_SPEED_MODE,
             .channel = (ledc_channel_t)channel,
-            .timer_sel = (ledc_timer_t)channel,
+            .timer_sel = (ledc_timer_t)timer,
             .duty = 0,
             .hpoint = 0
         };
         ledc_channel_config(&channel_config);
         
         pwmChannels[pin] = channel;
+        // Debug output
+        Serial.printf("[GPIOManager] Pin %d -> Channel %d -> Timer %d\n", pin, channel, timer);
     #endif
 }
 
@@ -144,14 +183,29 @@ void GPIOManager::configurePWMPin(int pin, int frequency, int resolution) {
  *
  */
 void GPIOManager::writePWM(int pin, int duty) {
-    duty = constrain(duty, 0, 255);
+
+    int maxDuty;
+    if (pin == 23 || pin == 18) {
+        maxDuty = 1023; // 10-bit for audio (pins 23 or 18)
+    } else {
+        maxDuty = 255;  // 8-bit for motors
+    }
+
+    duty = constrain(duty, 0, maxDuty);
     // Serial.printf("GPIOManager::writePWM pin=%d duty=%d\n", pin, duty); // Comment out for less spam
 
     #ifdef ESP32
         if (pwmChannels.find(pin) != pwmChannels.end()) {
             int channel = pwmChannels[pin];
-            ledc_set_duty(LEDC_LOW_SPEED_MODE, (ledc_channel_t)channel, duty);
-            ledc_update_duty(LEDC_LOW_SPEED_MODE, (ledc_channel_t)channel);
+            
+            // FIX: Use atomic duty cycle update to prevent glitches
+            if (duty == 0) {
+                // Explicitly stop the channel and force output LOW
+                ledc_stop(LEDC_LOW_SPEED_MODE, (ledc_channel_t)channel, 0);
+            } else {
+                ledc_set_duty(LEDC_LOW_SPEED_MODE, (ledc_channel_t)channel, duty);
+                ledc_update_duty(LEDC_LOW_SPEED_MODE, (ledc_channel_t)channel);
+            }
         }
     #else
         analogWrite(pin, duty);  // Fallback
@@ -198,7 +252,26 @@ void GPIOManager::setFrequency(int pin, int frequency) {
     #ifdef ESP32
         if (pwmChannels.find(pin) != pwmChannels.end()) {
             int channel = pwmChannels[pin];
-            ledc_set_freq(LEDC_LOW_SPEED_MODE, (ledc_timer_t)channel, frequency);
+            int timer;
+
+            if (pin == 19 || pin == 20 || pin == 0 || pin == 10) {
+                timer = 0; // Motor A and B (pins 19/0 and 20/10)
+                return;    // Don't change motor frequency
+            } else if (pin == 23 || pin == 18) {
+                timer = 1; // Audio (pins 23 or 18)
+            }
+            else {
+                timer = 2; // Default
+            }
+            
+            // Pause timer before frequency change
+            ledc_timer_pause(LEDC_LOW_SPEED_MODE, (ledc_timer_t)timer);
+            esp_err_t freq_err = ledc_set_freq(LEDC_LOW_SPEED_MODE, (ledc_timer_t)timer, frequency);
+            ledc_timer_resume(LEDC_LOW_SPEED_MODE, (ledc_timer_t)timer);
+            
+            if (freq_err != ESP_OK) {
+                Serial.printf("[GPIOManager] ERROR: Frequency change failed for pin %d: %d\n", pin, freq_err);
+            }
         }
     #endif
 }
