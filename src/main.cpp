@@ -19,7 +19,7 @@ void setup() {
 
   // Initialize Control Subsystem
   buzzcar = new ControlSubsystem();
-  ui = new UserInterface(11); // User button pin
+  ui = new UserInterface(config.pins.userButton); // User button pin from config
 
   buzzcar->initialize();
   ui->initialize();

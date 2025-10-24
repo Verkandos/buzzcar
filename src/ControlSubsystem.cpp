@@ -73,26 +73,26 @@ void ControlSubsystem::initialize() {
     GPIOManager& gpio = GPIOManager::getInstance();
     std::map<int, std::string> pinMappings = {
         // Inputs
-        {PHOTO_SENSOR_A_PIN, "analog_input"}, // Pin 3
-        {PHOTO_SENSOR_B_PIN, "analog_input"}, // Pin 2
-        {PHOTO_SENSOR_C_PIN, "analog_input"}, // Pin 1
-        {USER_BUTTON_PIN, "digital_input_pullup"}, // Pin 11
+        {config.pins.photoSensorA, "analog_input"}, // Pin 3
+        {config.pins.photoSensorB, "analog_input"}, // Pin 2
+        {config.pins.photoSensorC, "analog_input"}, // Pin 1
+        {config.pins.userButton, "digital_input_pullup"}, // Pin 11
 
         // Outputs
-        {MOTOR_A_PIN, "pwm_output"}, // Pin 20
-        {MOTOR_B_PIN, "pwm_output"}, // Pin 19
-        {AUDIO_PIN, "pwm_output"},    // Pin 23
-        {LCD_DATA_PIN, "digital_output"}, // Pin 22
-        {LCD_CLK_PIN, "digital_output"}    // Pin 21
+        {config.pins.motorA, "pwm_output"}, // Pin 20
+        {config.pins.motorB, "pwm_output"}, // Pin 19
+        {config.pins.audio, "pwm_output"},    // Pin 23
+        {config.pins.lcdData, "digital_output"}, // Pin 22
+        {config.pins.lcdClk, "digital_output"}    // Pin 21
 
     };
 
     gpio.initializePins(pinMappings);
 
     // Initialize PhotoSensors
-    sensorLeft = new PhotoSensor(PHOTO_SENSOR_A_PIN);
-    sensorCenter = new PhotoSensor(PHOTO_SENSOR_B_PIN);
-    sensorRight = new PhotoSensor(PHOTO_SENSOR_C_PIN);
+    sensorLeft = new PhotoSensor(config.pins.photoSensorA);
+    sensorCenter = new PhotoSensor(config.pins.photoSensorB);
+    sensorRight = new PhotoSensor(config.pins.photoSensorC);
 
     sensorLeft->initialize();
     sensorCenter->initialize();
@@ -102,8 +102,8 @@ void ControlSubsystem::initialize() {
     lineDetector = new LineDetector(*sensorLeft, *sensorCenter, *sensorRight, config.sensors.blackThreshold,config.sensors.whiteThreshold);
 
     // Initialize Motors
-    motorA = new Motor(MOTOR_A_PIN);
-    motorB = new Motor(MOTOR_B_PIN);
+    motorA = new Motor(config.pins.motorA);
+    motorB = new Motor(config.pins.motorB);
 
     motorA->initialize();
     motorB->initialize();
@@ -116,8 +116,8 @@ void ControlSubsystem::initialize() {
     motorB->setPWMRange(config.motor.minStartPWM, config.motor.maxPWM);
 
     // Initialize Screen and Speaker
-    screenBegin(LCD_DATA_PIN, LCD_CLK_PIN);
-    speakerBegin(AUDIO_PIN, 2, 10, config.feedback.audioVolume); // Use config volume
+    screenBegin(config.pins.lcdData, config.pins.lcdClk);
+    speakerBegin(config.pins.audio, 2, 10, config.feedback.audioVolume); // Use config volume
 
     // Show initial state on screen
     showDirection(0); // Show STOP initially
@@ -143,8 +143,9 @@ void ControlSubsystem::initialize() {
 
     Serial.println("ControlSubsystem hardware initialized.");
     Serial.println("FSM initialized to IdleState.");
-    Serial.println("Motors: A(Pin 20), B(Pin 19)");
-    Serial.println("PhotoSensors: Left(Pin 3), Center(Pin 2), Right(Pin 1)");
+    Serial.printf("Motors: A(Pin %d), B(Pin %d)\n", config.pins.motorA, config.pins.motorB);
+    Serial.printf("PhotoSensors: Left(Pin %d), Center(Pin %d), Right(Pin %d)\n", 
+                  config.pins.photoSensorA, config.pins.photoSensorB, config.pins.photoSensorC);
     
 }
 
