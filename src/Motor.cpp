@@ -21,8 +21,11 @@ void Motor::initialize() {
         // Configure pin as PWM output with 10kHz
         gpio.configurePWMPin(pinPWM, config.motor.motorFrequency, 8);
         
-        // Start with motor stopped
+        //Start with motor explicitly stopped at 0 duty
         applyPWM(0);
+        
+        // Add small delay to let hardware settle
+        delay(5);
     }
 }
 
@@ -95,6 +98,7 @@ int Motor::getMaxPWM() const {
 // hardware interface
 void Motor::applyPWM(int pwmValue) {
     if (pinPWM != -1) {
+        pwmValue = constrain(pwmValue, 0, 255);
         
         GPIOManager& gpio = GPIOManager::getInstance();
         gpio.writePWM(pinPWM, pwmValue);
