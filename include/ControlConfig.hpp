@@ -21,6 +21,22 @@ class ControlConfig {
             return instance;
         }
 
+        // === GPIO PIN CONFIGURATION ===
+        struct PinSettings {
+            // Inputs
+            int photoSensorA = 3;     // Photosensor A (Analog ADC Pin)
+            int photoSensorB = 2;     // Photosensor B (Analog ADC Pin)
+            int photoSensorC = 1;     // Photosensor C (Analog ADC Pin)
+            int userButton = 11;      // User Button (Digital GPIO Pin)
+            
+            // Outputs
+            int audio = 23;           // Audio/Speaker (PWM GPIO Pin)
+            int lcdData = 22;         // LCD Data (GPIO Pin)
+            int lcdClk = 21;          // LCD Clock (GPIO Pin)
+            int motorA = 20;          // Motor A (PWM GPIO Pin)
+            int motorB = 19;          // Motor B (PWM GPIO Pin)
+        } pins;
+
         // === MOTOR CONFIGURATION ===
         struct MotorSettings {
             int baseSpeed = 50;      // Base speed for motors (0-100%)
@@ -42,7 +58,7 @@ class ControlConfig {
 
         // === LINE DETECTION CONFIGURATION ===
         struct LineSettings {
-            int blackThreshold = 3000;    // ADC threshold for line detection (0-4095) LOOK AT FILES for;
+            int blackThreshold = 2000;    // ADC threshold for line detection (0-4095) LOOK AT FILES for;
             int whiteThreshold = 100; // ADC threshold for white line detection (0-4095)
             int sensorReadInterval = 10; // Sensor read interval in milliseconds
         } sensors;
@@ -76,6 +92,16 @@ class ControlConfig {
          */
         void printConfig() const {
             Serial.println("=== Control Configuration ===");
+            Serial.println("-- Pin Settings --");
+            Serial.print("Photo Sensor A: "); Serial.println(pins.photoSensorA);
+            Serial.print("Photo Sensor B: "); Serial.println(pins.photoSensorB);
+            Serial.print("Photo Sensor C: "); Serial.println(pins.photoSensorC);
+            Serial.print("User Button: "); Serial.println(pins.userButton);
+            Serial.print("Audio: "); Serial.println(pins.audio);
+            Serial.print("LCD Data: "); Serial.println(pins.lcdData);
+            Serial.print("LCD Clock: "); Serial.println(pins.lcdClk);
+            Serial.print("Motor A: "); Serial.println(pins.motorA);
+            Serial.print("Motor B: "); Serial.println(pins.motorB);
             Serial.println("-- Motor Settings --");
             Serial.print("Base Speed: "); Serial.println(motor.baseSpeed);
             Serial.print("Turn Speed: "); Serial.println(motor.turnSpeed);
