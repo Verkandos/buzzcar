@@ -27,7 +27,7 @@ bool UserInterface::isButtonPressed() {
         return false; // Button pin not initialized
     }
     GPIOManager& gpio = GPIOManager::getInstance();
-    return gpio.readDigital(pinButton);
+    return !gpio.readDigital(pinButton); // Updated, button now active HIGH
 }
 
 bool UserInterface::wasButtonPressed() {
@@ -50,7 +50,7 @@ bool UserInterface::wasButtonPressed() {
     }
 
     if (timeSinceLastChange > 50) { // 50ms debounce time
-        if (!currentButtonState && lastButtonState) {
+        if (currentButtonState == LOW && lastButtonState == HIGH) {
             // Falling edge (HIGH to LOW) - for pullup resistor configuration
             pressed = true; // Button was pressed
             Serial.printf("DEBUG_UI: BUTTON PRESS DETECTED! timeSince=%lu\n", timeSinceLastChange);
