@@ -81,7 +81,7 @@ void ControlSubsystem::initialize() {
         // Outputs
         {config.pins.motorA, "pwm_output"}, // Pin 20
         {config.pins.motorB, "pwm_output"}, // Pin 19
-        {config.pins.audio, "pwm_output"},    // Pin 23
+        {config.pins.audio, "pwm_output"},    // Pin 23/0
         {config.pins.lcdData, "digital_output"}, // Pin 22
         {config.pins.lcdClk, "digital_output"}    // Pin 21
 
@@ -139,7 +139,7 @@ void ControlSubsystem::initialize() {
     fsm->initialize();
 
     // Set initial state to idle
-    fsm->transitionTo(idleState);
+    // fsm->transitionTo(idleState);
 
     Serial.println("ControlSubsystem hardware initialized.");
     Serial.println("FSM initialized to IdleState.");
