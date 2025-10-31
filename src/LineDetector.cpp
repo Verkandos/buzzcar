@@ -35,8 +35,8 @@ LineState LineDetector::detectLineState() {
     }
 
     // Priority 2: On Line
-    if (!leftOnBlack && centerOnBlack && !rightOnBlack) {
-        return LineState::ON_LINE; // Only center on black
+    if ((!leftOnBlack && centerOnBlack && !rightOnBlack) or (leftOnBlack && centerOnBlack && rightOnBlack)) {
+        return LineState::ON_LINE; // Only center on black or all black
     }
     
     // Priority 3: Off Line
@@ -46,9 +46,9 @@ LineState LineDetector::detectLineState() {
 
     // Priority 4: Unknown
     // If none of the above conditions are met, the line state is unknown
-    if (leftOnBlack && centerOnBlack && rightOnBlack) {
-        return LineState::UNKNOWN; // All sensors on black
-    }
+    // if (leftOnBlack && centerOnBlack && rightOnBlack) {
+    //     return LineState::UNKNOWN; // All sensors on black
+    // }
 
     // Default to UNKNOWN for any other inconsistent readings
     return LineState::UNKNOWN;
@@ -62,8 +62,8 @@ float LineDetector::calculateLinePosition() const {
     
     // Get thresholds from configuration; check for acutal values as they may differ from below
     ControlConfig& config = ControlConfig::getInstance();
-    int blackThreshold = config.sensors.blackThreshold; // Default 3000;
-    int whiteThreshold = config.sensors.whiteThreshold; // Default 100 
+    int blackThreshold = config.sensors.blackThreshold; // Defaults in ControlConfig;
+    int whiteThreshold = config.sensors.whiteThreshold;
 
     // Normallize each sensor reading to 0.0 (white) - 1.0 (black)
     float lnorm = constrain(map(leftRaw, whiteThreshold, blackThreshold, 0, 1000), 0, 1000) / 1000.0f;
