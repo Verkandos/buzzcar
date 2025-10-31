@@ -92,7 +92,7 @@ void GPIOManager::configurePin(int pin, const std::string& mode) {
  * @note Pin-to-channel mapping:
  *      - Pin 19: Channel 0 (Motor B)
  *     - Pin 20: Channel 1 (Motor A)
- *     - Pin 23: Channel 2 (Audio)
+ *     - Pin 23/0: Channel 2 (Audio) 
  *    - Other pins: Channel 3 (Default)
  */
 void GPIOManager::configurePWMPin(int pin, int frequency, int resolution) {
@@ -100,7 +100,7 @@ void GPIOManager::configurePWMPin(int pin, int frequency, int resolution) {
         // Use direct ESP32 LEDC driver instead of Arduino abstraction
         int channel;
         int timer;
-        if (pin == 19 || pin == 0) {
+        if (pin == 19 || pin == 18) {
             channel = 0;      // Motor B - Channel 0 (pin 19 or 0)
             timer = 0;
         }
@@ -108,7 +108,7 @@ void GPIOManager::configurePWMPin(int pin, int frequency, int resolution) {
             channel = 1;      // Motor A - Channel 1 (pin 20 or 10)
             timer = 0;
         }
-        else if (pin == 23 || pin == 18) {
+        else if (pin == 23 || pin == 0) {
             channel = 2;      // Audio - Channel 2 (pin 23 or 18)
             timer = 1;
         }
@@ -185,14 +185,13 @@ void GPIOManager::configurePWMPin(int pin, int frequency, int resolution) {
 void GPIOManager::writePWM(int pin, int duty) {
 
     int maxDuty;
-    if (pin == 23 || pin == 18) {
-        maxDuty = 1023; // 10-bit for audio (pins 23 or 18)
+    if (pin == 23 || pin == 0) {
+        maxDuty = 1023; // 10-bit for audio (pins 23 or 0)
     } else {
         maxDuty = 255;  // 8-bit for motors
     }
 
     duty = constrain(duty, 0, maxDuty);
-    // Serial.printf("GPIOManager::writePWM pin=%d duty=%d\n", pin, duty); // Comment out for less spam
 
     #ifdef ESP32
         if (pwmChannels.find(pin) != pwmChannels.end()) {
@@ -254,10 +253,10 @@ void GPIOManager::setFrequency(int pin, int frequency) {
             int channel = pwmChannels[pin];
             int timer;
 
-            if (pin == 19 || pin == 20 || pin == 0 || pin == 10) {
-                timer = 0; // Motor A and B (pins 19/0 and 20/10)
+            if (pin == 19 || pin == 20 || pin == 18 || pin == 10) {
+                timer = 0; // Motor A and B (pins 19/18 and 20/10)
                 return;    // Don't change motor frequency
-            } else if (pin == 23 || pin == 18) {
+            } else if (pin == 23 || pin == 0) {
                 timer = 1; // Audio (pins 23 or 18)
             }
             else {
