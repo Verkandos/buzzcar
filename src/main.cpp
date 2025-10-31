@@ -9,6 +9,11 @@ UserInterface* ui;
 
 void setup() {
   Serial.begin(115200);
+  // Wait for serial connection
+  while (!Serial && millis() < 2000) {
+      delay(100);
+  }
+  delay(1000);
 
   // Get config and turn parameters
   ControlConfig& config = ControlConfig::getInstance();
