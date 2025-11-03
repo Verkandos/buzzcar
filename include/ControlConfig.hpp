@@ -30,30 +30,34 @@ class ControlConfig {
             int userButton = 11;      // User Button (Digital GPIO Pin)
             
             // Outputs
-            int audio = 23;           // Audio/Speaker (PWM GPIO Pin)
+            int audio = 0;           // Audio/Speaker (PWM GPIO Pin)
             int lcdData = 22;         // LCD Data (GPIO Pin)
             int lcdClk = 21;          // LCD Clock (GPIO Pin)
             int motorA = 20;          // Motor A (PWM GPIO Pin)
             int motorB = 19;          // Motor B (PWM GPIO Pin)
+
+
+            // Protection pin (high impedance)
+            int protectionPin = 23;   // Pin set to INPUT to avoid interference
         } pins;
 
         // === MOTOR CONFIGURATION ===
         struct MotorSettings {
-            int baseSpeed = 50;      // Base speed for motors (0-100%)
-            int turnSpeed = 40;      // Speed during turns (0-100%)
-            int minStartPWM = 20; // Minimum PWM to start motor movement
+            int baseSpeed = 30;      // Base speed for motors (0-100%)
+            int turnSpeed = 0;      // Speed during turns (0-100%)
+            int minStartPWM = 0; // Minimum PWM to start motor movement
             int maxPWM = 255;        // Maximum PWM value
             int motorFrequency = 10000; // PWM frequency in Hz (10kHz)
         } motor;
 
         // === PID CONTROLLER CONFIGURATION ===
         struct PIDSettings {
-            float Kp = 2.0f;         // Proportional gain
-            float Ki = 0.1f;         // Integral gain
-            float Kd = 0.5f;         // Derivative gain
-            float outputMin = -40.0f; // Minimum PID output
-            float outputMax = 40.0f;  // Maximum PID output
-            float integralLimit = 25.0f; // Integral windup limit
+            float Kp = 3.0f;         // Proportional gain
+            float Ki = 0.05f;         // Integral gain
+            float Kd = 1.0f;         // Derivative gain
+            float outputMin = -50.0f; // Minimum PID output
+            float outputMax = 50.0f;  // Maximum PID output
+            float integralLimit = 20.0f; // Integral windup limit
         } pid;
 
         // === LINE DETECTION CONFIGURATION ===

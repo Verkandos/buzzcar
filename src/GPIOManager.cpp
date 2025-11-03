@@ -202,6 +202,7 @@ void GPIOManager::writePWM(int pin, int duty) {
                 // Explicitly stop the channel and force output LOW
                 ledc_stop(LEDC_LOW_SPEED_MODE, (ledc_channel_t)channel, 0);
             } else {
+                Serial.printf("[GPIOManager] Writing PWM to Pin %d (Channel %d): Duty %d\n", pin, channel, duty);
                 ledc_set_duty(LEDC_LOW_SPEED_MODE, (ledc_channel_t)channel, duty);
                 ledc_update_duty(LEDC_LOW_SPEED_MODE, (ledc_channel_t)channel);
             }
@@ -256,8 +257,9 @@ void GPIOManager::setFrequency(int pin, int frequency) {
             if (pin == 19 || pin == 20 || pin == 18 || pin == 10) {
                 timer = 0; // Motor A and B (pins 19/18 and 20/10)
                 return;    // Don't change motor frequency
-            } else if (pin == 23 || pin == 0) {
-                timer = 1; // Audio (pins 23 or 18)
+            } else if (pin == 0) { // removed pin 23
+                timer = 1;
+                
             }
             else {
                 timer = 2; // Default
@@ -265,6 +267,7 @@ void GPIOManager::setFrequency(int pin, int frequency) {
             
             // Pause timer before frequency change
             ledc_timer_pause(LEDC_LOW_SPEED_MODE, (ledc_timer_t)timer);
+            
             esp_err_t freq_err = ledc_set_freq(LEDC_LOW_SPEED_MODE, (ledc_timer_t)timer, frequency);
             ledc_timer_resume(LEDC_LOW_SPEED_MODE, (ledc_timer_t)timer);
             

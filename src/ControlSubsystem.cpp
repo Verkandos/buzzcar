@@ -67,6 +67,9 @@ void ControlSubsystem::initialize() {
     // Initialization code
     ControlConfig& config = ControlConfig::getInstance();
 
+    pinMode(config.pins.protectionPin, INPUT); // Set protection pin to high impedance
+    Serial.println("Pin 23 set to high impedance (INPUT mode)");
+
 
     // hardware initialization
     

@@ -22,6 +22,10 @@ void setup() {
   
   Serial.println("BuzzCar Control System Starting...");
 
+  pinMode(config.pins.protectionPin, INPUT);
+  Serial.println("Pin 23 set to high impedance (INPUT mode)");
+
+
   // Initialize Control Subsystem
   buzzcar = new ControlSubsystem();
   ui = new UserInterface(config.pins.userButton); // User button pin from config
