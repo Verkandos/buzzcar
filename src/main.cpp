@@ -2,6 +2,9 @@
 #include "ControlSubsystem.hpp"
 #include "UserInterface.hpp"
 #include "ControlConfig.hpp"
+#include "Speaker.h"
+#include "Screen.h"
+#include "FSM.hpp"
 
 // Global pointer to control subsystem
 ControlSubsystem* buzzcar;
@@ -37,10 +40,27 @@ void setup() {
 
 void loop() {
   ControlConfig& config = ControlConfig::getInstance();
+  
   // Update user interface
   if (ui->wasButtonPressed()) {
     ui->toggleSystem();
-    Serial.print("System ON");
+    
+    if (ui->isSystemOn()) {
+      Serial.println("System turned ON");
+    } else {
+      Serial.println("System turned OFF - Stopping motors");
+      
+      // Stop all motors immediately
+      buzzcar->getMotorA()->stop();
+      buzzcar->getMotorB()->stop();
+      
+      // Reset FSM to idle state
+      buzzcar->getFSM()->reset();
+      
+      // Stop audio and show STOP on screen
+      speakerStop();
+      showDirection(0);
+    }
   }
 
   // Update control system if enabled
