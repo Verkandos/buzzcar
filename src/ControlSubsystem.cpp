@@ -80,6 +80,7 @@ void ControlSubsystem::initialize() {
         {config.pins.photoSensorB, "analog_input"}, // Pin 2
         {config.pins.photoSensorC, "analog_input"}, // Pin 1
         {config.pins.userButton, "digital_input_pullup"}, // Pin 11
+        {config.pins.protectionPin, "digital_input"}, // Pin 23 - HIGH IMPEDANCE
 
         // Outputs
         {config.pins.motorA, "pwm_output"}, // Pin 20
