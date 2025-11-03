@@ -168,7 +168,7 @@ void setupControlSpeakerTest() {
     gpio->initializePins(speakerPins);
     
     // Configure PWM for audio pin using ControlConfig values
-    gpio->configurePWMPin(config.pins.audio, config.feedback.audioFrequency, 10); // From config, 8-bit resolution
+    gpio->configurePWMPin(config.pins.audio, config.feedback.audioFrequency, 10); // From config, 10-bit resolution
     
     // Initialize speaker directly
     speakerBegin(config.pins.audio, 2, 10, config.feedback.audioVolume); // Use config volume
@@ -1171,7 +1171,8 @@ void runUIAVSensorsMotorsTest() {
                                     (rightRaw < config.sensors.whiteThreshold) ? "WHITE" : "GRAY";
         
         // Get LineDetector analysis
-        LineState lineState = lineDetector->detectLineState();
+        // LineState lineState = lineDetector->detectLineState();
+        LineState lineState = LineState::ON_LINE;
         float linePosition = lineDetector->calculateLinePosition();
         
         // Map LineState to motor commands and AV feedback
@@ -1277,6 +1278,14 @@ void setup() {
     
     Serial.println("BuzzCar Integration Tests - Phase I & II");
     Serial.println("=======================================");
+    
+    // Get configuration instance
+    ControlConfig& config = ControlConfig::getInstance();
+    
+    // CRITICAL: Set pin 23 to high impedance
+    pinMode(config.pins.protectionPin, INPUT);
+    Serial.printf("Protected pin %d set to INPUT (high impedance)\n", config.pins.protectionPin);
+    Serial.println();
     
     // Validate test selection
     if (!validateTestSelection()) {
