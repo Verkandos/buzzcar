@@ -26,34 +26,43 @@ LineState LineDetector::detectLineState() {
     bool centerOnBlack = isSensorOnBlack(sensorC); // Center sensor
     bool rightOnBlack = isSensorOnBlack(sensorR); // Right sensor
     
-    // Priority 1: WBW = ON_LINE (center on black line - following normally)
-    if (!leftOnBlack && centerOnBlack && !rightOnBlack) {
-        return LineState::ON_LINE; // WBW = centered on line
-    }
-    
-    // Priority 2: Turn Detection (two sensors on black)
-    if (!leftOnBlack && centerOnBlack && rightOnBlack) {
-        return LineState::TURN_RIGHT; // WBB = line moved right
-    }
-    if (leftOnBlack && centerOnBlack && !rightOnBlack) {
-        return LineState::TURN_LEFT; // BBW = line moved left
-    }
-    
-    // Priority 3: Single edge detection (edge of line detected)
-    if (leftOnBlack && !centerOnBlack && !rightOnBlack) {
-        return LineState::TURN_LEFT; // BWW = left edge detected, turn left
-    }
-    if (!leftOnBlack && !centerOnBlack && rightOnBlack) {
-        return LineState::TURN_RIGHT; // WWB = right edge detected, turn right
-    }
-    
-    // Priority 4: All black (intersection - treat as ON_LINE)
+    // Priority 1: All Black = ON_LINE (intersection - go straight)
     if (leftOnBlack && centerOnBlack && rightOnBlack) {
         return LineState::ON_LINE; // BBB = intersection, go forward
     }
     
-    // Priority 5: All other patterns = OFF_LINE (lost line)
-    // This includes: WWW (no line), BWB (invalid)
+    // Priority 2: WBW = ON_LINE (center on black line - following normally)
+    if (!leftOnBlack && centerOnBlack && !rightOnBlack) {
+        return LineState::ON_LINE; // WBW = centered on line
+    }
+    
+    // Priority 3: Center + One Side = TURN (line is curving)
+    // These patterns indicate the line is moving to one side
+    if (centerOnBlack && rightOnBlack && !leftOnBlack) {
+        return LineState::TURN_RIGHT; // WBB = line curving right
+    }
+    if (centerOnBlack && leftOnBlack && !rightOnBlack) {
+        return LineState::TURN_LEFT; // BBW = line curving left
+    }
+    
+    // Priority 4: Single Edge Detection (ONLY when center is NOT black)
+    // This prevents false turns when center is still tracking the line
+    if (!centerOnBlack) {
+        if (leftOnBlack && !rightOnBlack) {
+            return LineState::TURN_LEFT; // BWW = left edge only, turn left
+        }
+        if (rightOnBlack && !leftOnBlack) {
+            return LineState::TURN_RIGHT; // WWB = right edge only, turn right
+        }
+    }
+    
+    // Priority 5: All White = OFF_LINE (no line detected)
+    if (!leftOnBlack && !centerOnBlack && !rightOnBlack) {
+        return LineState::OFF_LINE; // WWW = lost line
+    }
+    
+    // Priority 6: All other patterns = OFF_LINE (invalid/ambiguous)
+    // This includes: BWB (invalid pattern)
     return LineState::OFF_LINE;
 }
 
