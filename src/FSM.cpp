@@ -88,11 +88,12 @@ void FSM::handleEvent(const Event& event) {
         
         case EventType::START_MOVEMENT:
             Serial.printf("FSM: Handling START_MOVEMENT event, current state: %s\n", getCurrentStateName());
-            if (strcmp(getCurrentStateName(), "IdleState") == 0) {
+            if (strcmp(getCurrentStateName(), "IdleState") == 0 || 
+                strcmp(getCurrentStateName(), "StopState") == 0) {
                 Serial.println("FSM: Transitioning from IdleState to ForwardState");
                 transitionTo(new ForwardState());
             } else {
-                Serial.println("FSM: START_MOVEMENT ignored - not in IdleState");
+                Serial.println("FSM: START_MOVEMENT ignored - not in IdleState or StopState");
             }
             break;
 
