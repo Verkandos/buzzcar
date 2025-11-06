@@ -19,7 +19,8 @@
  * Actual hardware initialization is done in the initialize() method
  */
 ControlSubsystem::ControlSubsystem()
-    : motorA(nullptr), motorB(nullptr), lineDetector(nullptr), pidController(nullptr) {
+    : motorA(nullptr), motorB(nullptr), lineDetector(nullptr), pidController(nullptr),
+      lastTurnDirection(LastTurn::NONE), lastLineSeenTime(0) {
         // Create FSM with this as context
         fsm = std::make_unique<FSM>(this);
 
@@ -226,8 +227,12 @@ Event ControlSubsystem::generateEvent() {
 
     const char* currentStateName = fsm->getCurrentStateName();
 
-    
-    if(strcmp(currentStateName, "IdleState") == 0) {
+    // Update last line seen time if we're on the line
+    if (lineState == LineState::ON_LINE) {
+        lastLineSeenTime = millis();
+    }
+    // === STATE: IDLE ===
+    if (strcmp(currentStateName, "IdleState") == 0) {
         // In IdleState, start movement if line detected
         if (lineState == LineState::ON_LINE ||
             lineState == LineState::TURN_LEFT ||
@@ -235,41 +240,94 @@ Event ControlSubsystem::generateEvent() {
             Serial.println("Event: Line detected while idle - START_MOVEMENT");
             return Event(EventType::START_MOVEMENT);
         }
-    } else if (strcmp(currentStateName, "ForwardState") == 0) {
-        // In ForwardState, check for turn conditions or off-line
+    }
+    
+    // === STATE: FORWARD (WBW pattern) ===
+    else if (strcmp(currentStateName, "ForwardState") == 0) {
         if (lineState == LineState::TURN_LEFT) {
             Serial.println("Event: TURN_LEFT detected");
+            lastTurnDirection = LastTurn::LEFT;  // Remember this turn
             return Event(EventType::TURN_LEFT);
-        } else if (lineState == LineState::TURN_RIGHT) {
+        }
+        else if (lineState == LineState::TURN_RIGHT) {
             Serial.println("Event: TURN_RIGHT detected");
+            lastTurnDirection = LastTurn::RIGHT;  // Remember this turn
             return Event(EventType::TURN_RIGHT);
-        } else if (lineState == LineState::OFF_LINE) {
-            Serial.println("Event: OFF_LINE detected");
+        }
+        else if (lineState == LineState::OFF_LINE) {
+            Serial.println("Event: OFF_LINE detected while forward");
             return Event(EventType::OFF_LINE);
         }
-    } else if (strcmp(currentStateName, "TurnLeftState") == 0) {
-        // In turn left state, check if turn is complete
+        // else: ON_LINE - stay in forward
+    }
+    
+    // === STATE: TURN LEFT ===
+    else if (strcmp(currentStateName, "TurnLeftState") == 0) {
         if (lineState == LineState::ON_LINE) {
-            Serial.println("Event: ON_LINE detected - complete left turn");
+            Serial.println("Event: ON_LINE detected - left turn complete");
+            lastTurnDirection = LastTurn::NONE;  // Reset memory
             return Event(EventType::FORWARD);
-        } else if (lineState == LineState::OFF_LINE) {
-            Serial.println("Event: OFF_LINE detected during left turn");
-            return Event(EventType::OFF_LINE);
         }
-    } else if (strcmp(currentStateName, "TurnRightState") == 0) {
-        // In turn right state, check if turn is complete
+        else if (lineState == LineState::TURN_RIGHT) {
+            // Overshot left turn - now need to turn right to correct
+            Serial.println("Event: Overshot left turn - correcting RIGHT");
+            lastTurnDirection = LastTurn::RIGHT;  // Update memory
+            return Event(EventType::TURN_RIGHT);
+        }
+        else if (lineState == LineState::OFF_LINE) {
+            // Don't stop during turn - this is mid-turn overshoot
+            Serial.println("Event: WWW during left turn - CONTINUE TURNING");
+            return Event(EventType::NONE);  // Stay in TurnLeftState
+        }
+        // else: TURN_LEFT - keep turning left
+    }
+    
+    // === STATE: TURN RIGHT ===
+    else if (strcmp(currentStateName, "TurnRightState") == 0) {
         if (lineState == LineState::ON_LINE) {
-            Serial.println("Event: ON_LINE detected - complete right turn");
+            Serial.println("Event: ON_LINE detected - right turn complete");
+            lastTurnDirection = LastTurn::NONE;  // Reset memory
             return Event(EventType::FORWARD);
-        } else if (lineState == LineState::OFF_LINE) {
-            Serial.println("Event: OFF_LINE detected during right turn");
-            return Event(EventType::OFF_LINE);
         }
-    } else if (strcmp(currentStateName, "StopState") == 0) {
-        // In StopState, wait for manual reset (not implemented here)
-        if (lineState == LineState::ON_LINE) {
-            Serial.println("Event: ON_LINE detected - reset from stop");
-            return Event(EventType::START_MOVEMENT);
+        else if (lineState == LineState::TURN_LEFT) {
+            // Overshot right turn - now need to turn left to correct
+            Serial.println("Event: Overshot right turn - correcting LEFT");
+            lastTurnDirection = LastTurn::LEFT;  // Update memory
+            return Event(EventType::TURN_LEFT);
+        }
+        else if (lineState == LineState::OFF_LINE) {
+            // Don't stop during turn - this is mid-turn overshoot
+            Serial.println("Event: WWW during right turn - CONTINUE TURNING");
+            return Event(EventType::NONE);  // Stay in TurnRightState
+        }
+        // else: TURN_RIGHT - keep turning right
+    }
+    
+    // === STATE: STOP/OFF_LINE ===
+    else if (strcmp(currentStateName, "StopState") == 0) {
+        // Check for timeout (safety)
+        if (millis() - lastLineSeenTime > LINE_LOST_TIMEOUT) {
+            Serial.println("Event: Line lost for too long - EMERGENCY STOP");
+            lastTurnDirection = LastTurn::NONE;
+            return Event(EventType::NONE);  // Stay stopped
+        }
+        
+        if (lineState == LineState::OFF_LINE) {
+            // Use turn memory to recover
+            if (lastTurnDirection == LastTurn::LEFT) {
+                Serial.println("Event: Recovering - continue LEFT");
+                return Event(EventType::TURN_LEFT);
+            }
+            else if (lastTurnDirection == LastTurn::RIGHT) {
+                Serial.println("Event: Recovering - continue RIGHT");
+                return Event(EventType::TURN_RIGHT);
+            }
+            // else: No memory, stay stopped
+        }
+        else if (lineState == LineState::ON_LINE) {
+            Serial.println("Event: Line recovered - FORWARD");
+            lastTurnDirection = LastTurn::NONE;  // Reset memory
+            return Event(EventType::FORWARD);
         }
     }
 

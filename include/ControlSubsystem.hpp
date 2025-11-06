@@ -17,6 +17,14 @@ class PIDController;
 class Event;
 
 class ControlSubsystem {
+    public:
+        // Turn memory for recovery from line loss
+        enum class LastTurn {
+            NONE,
+            LEFT,
+            RIGHT
+        };
+        
     private:
         std::unique_ptr<FSM> fsm;
 
@@ -35,6 +43,11 @@ class ControlSubsystem {
         PhotoSensor* sensorRight;
         LineDetector* lineDetector;
         PIDController* pidController;
+
+        // Turn memory tracking
+        LastTurn lastTurnDirection;
+        unsigned long lastLineSeenTime;
+        static const unsigned long LINE_LOST_TIMEOUT = 3000; // 3 seconds
 
         // Helper method to generate events based on sensor readings
         Event generateEvent();
@@ -55,4 +68,7 @@ class ControlSubsystem {
         PIDController* getPIDController() const { return pidController; }
         FSM* getFSM() { return fsm.get(); }
 
+        // Turn memory getters/setters
+        LastTurn getLastTurn() const { return lastTurnDirection; }
+        void setLastTurn(LastTurn turn) { lastTurnDirection = turn; }
 };
