@@ -12,13 +12,13 @@ LineDetector::LineDetector(PhotoSensor& left, PhotoSensor& center, PhotoSensor& 
 bool LineDetector::isSensorOnWhite(PhotoSensor& sensor) const {
     ControlConfig& config = ControlConfig::getInstance();
     int reading = sensor.readRaw();
-    return reading < config.sensors.whiteThreshold;
+    return reading > config.sensors.whiteThreshold; // High values (>3000) = white
 }
 
 bool LineDetector::isSensorOnBlack(PhotoSensor& sensor) const {
     ControlConfig& config = ControlConfig::getInstance();
     int reading = sensor.readRaw();
-    return reading > config.sensors.blackThreshold;
+    return reading < config.sensors.blackThreshold; // Low values (<10) = black
 }
 
 LineState LineDetector::detectLineState() {
@@ -26,32 +26,35 @@ LineState LineDetector::detectLineState() {
     bool centerOnBlack = isSensorOnBlack(sensorC); // Center sensor
     bool rightOnBlack = isSensorOnBlack(sensorR); // Right sensor
     
-    // Priority 1: Turn Detection
-    if (leftOnBlack && centerOnBlack && !rightOnBlack) {
-        return LineState::TURN_LEFT; // Left and center on black, right on white
-    }
-    if (!leftOnBlack && centerOnBlack && rightOnBlack) {
-        return LineState::TURN_RIGHT; // Right and center on black, left on white
-    }
-
-    // Priority 2: On Line
-    if ((!leftOnBlack && centerOnBlack && !rightOnBlack) or (leftOnBlack && centerOnBlack && rightOnBlack)) {
-        return LineState::ON_LINE; // Only center on black or all black
+    // Priority 1: WBW = ON_LINE (center on black line - following normally)
+    if (!leftOnBlack && centerOnBlack && !rightOnBlack) {
+        return LineState::ON_LINE; // WBW = centered on line
     }
     
-    // Priority 3: Off Line
-    if (!centerOnBlack) {
-        return LineState::OFF_LINE; // All on white
+    // Priority 2: Turn Detection (two sensors on black)
+    if (!leftOnBlack && centerOnBlack && rightOnBlack) {
+        return LineState::TURN_RIGHT; // WBB = line moved right
     }
-
-    // Priority 4: Unknown
-    // If none of the above conditions are met, the line state is unknown
-    // if (leftOnBlack && centerOnBlack && rightOnBlack) {
-    //     return LineState::UNKNOWN; // All sensors on black
-    // }
-
-    // Default to UNKNOWN for any other inconsistent readings
-    return LineState::UNKNOWN;
+    if (leftOnBlack && centerOnBlack && !rightOnBlack) {
+        return LineState::TURN_LEFT; // BBW = line moved left
+    }
+    
+    // Priority 3: Single edge detection (edge of line detected)
+    if (leftOnBlack && !centerOnBlack && !rightOnBlack) {
+        return LineState::TURN_LEFT; // BWW = left edge detected, turn left
+    }
+    if (!leftOnBlack && !centerOnBlack && rightOnBlack) {
+        return LineState::TURN_RIGHT; // WWB = right edge detected, turn right
+    }
+    
+    // Priority 4: All black (intersection - treat as ON_LINE)
+    if (leftOnBlack && centerOnBlack && rightOnBlack) {
+        return LineState::ON_LINE; // BBB = intersection, go forward
+    }
+    
+    // Priority 5: All other patterns = OFF_LINE (lost line)
+    // This includes: WWW (no line), BWB (invalid)
+    return LineState::OFF_LINE;
 }
 
 float LineDetector::calculateLinePosition() const {
@@ -62,27 +65,66 @@ float LineDetector::calculateLinePosition() const {
     
     // Get thresholds from configuration; check for acutal values as they may differ from below
     ControlConfig& config = ControlConfig::getInstance();
-    int blackThreshold = config.sensors.blackThreshold; // Defaults in ControlConfig;
-    int whiteThreshold = config.sensors.whiteThreshold;
+    int blackThreshold = config.sensors.blackThreshold; // Low values (<10) = black
+    int whiteThreshold = config.sensors.whiteThreshold; // High values (>3000) = white
 
-    // Normallize each sensor reading to 0.0 (white) - 1.0 (black)
-    float lnorm = constrain(map(leftRaw, whiteThreshold, blackThreshold, 0, 1000), 0, 1000) / 1000.0f;
-    float cnorm = constrain(map(centerRaw, whiteThreshold, blackThreshold, 0, 1000), 0, 1000) / 1000.0f;
-    float rnorm = constrain(map(rightRaw, whiteThreshold, blackThreshold, 0, 1000), 0, 1000) / 1000.0f;
+    
+    bool leftBlack = (leftRaw < blackThreshold);
+    bool centerBlack = (centerRaw < blackThreshold);
+    bool rightBlack = (rightRaw < blackThreshold);
 
-    // Constrain to -1.0 to 1.0
-    float position = (-1.0f * lnorm + 0.0f * cnorm + 1.0f * rnorm);
+    // Normalize each sensor reading to 0.0 (white) - 1.0 (black)
+    // Map: low values (black) → 1.0, high values (white) → 0.0
+    float lnorm = constrain(map(leftRaw, blackThreshold, whiteThreshold, 1000, 0), 0, 1000) / 1000.0f;
+    float cnorm = constrain(map(centerRaw, blackThreshold, whiteThreshold, 1000, 0), 0, 1000) / 1000.0f;
+    float rnorm = constrain(map(rightRaw, blackThreshold, whiteThreshold, 1000, 0), 0, 1000) / 1000.0f;
 
-    return constrain(position, -1.0f, 1.0f);
+    // Discrete position mapping based on sensor patterns
+    // -1.0 = line far left, 0.0 = centered, +1.0 = line far right
+    
+    if (leftBlack && centerBlack && rightBlack) {
+        return 0.0f; // BBB = intersection, perfectly centered
+    }
+    
+    if (!leftBlack && centerBlack && !rightBlack) {
+        return 0.0f; // WBW = centered on line
+    }
+    
+    if (leftBlack && centerBlack && !rightBlack) {
+        return -0.5f; // BBW = line slightly left
+    }
+    
+    if (!leftBlack && centerBlack && rightBlack) {
+        return 0.5f; // WBB = line slightly right
+    }
+    
+    if (leftBlack && !centerBlack && !rightBlack) {
+        return -1.0f; // BWW = line far left (left edge only)
+    }
+    
+    if (!leftBlack && !centerBlack && rightBlack) {
+        return 1.0f; // WWB = line far right (right edge only)
+    }
+    
+    if (!leftBlack && !centerBlack && !rightBlack) {
+        return 0.0f; // WWW = no line detected, assume centered
+    }
+    
+    // BWB pattern (shouldn't happen normally)
+    if (leftBlack && !centerBlack && rightBlack) {
+        return 0.0f; // BWB = ambiguous pattern, assume centered
+    }
+    
+    return 0.0f; // Default to centered
 }
 
-void LineDetector::setThresholds(int blackThreshold, int whiteThreshold) {
-    // Validate thresholds
-    if (blackThreshold < whiteThreshold && blackThreshold >= 0 && whiteThreshold <= 4095) {
-        this->blackThreshold = blackThreshold;
-        this->whiteThreshold = whiteThreshold;
-    }
-    // If validation fails, do not update thresholds
+    void LineDetector::setThresholds(int blackThreshold, int whiteThreshold) {
+        // Validate thresholds
+        if (blackThreshold < whiteThreshold && blackThreshold >= 0 && whiteThreshold <= 4095) {
+            this->blackThreshold = blackThreshold;
+            this->whiteThreshold = whiteThreshold;
+        }
+        // If validation fails, do not update thresholds
 }
 
 void LineDetector::getThresholds(int& blackThreshold, int& whiteThreshold) const {
