@@ -202,7 +202,7 @@ void GPIOManager::writePWM(int pin, int duty) {
                 // Explicitly stop the channel and force output LOW
                 ledc_stop(LEDC_LOW_SPEED_MODE, (ledc_channel_t)channel, 0);
             } else {
-                Serial.printf("[GPIOManager] Writing PWM to Pin %d (Channel %d): Duty %d\n", pin, channel, duty);
+                // Serial.printf("[GPIOManager] Writing PWM to Pin %d (Channel %d): Duty %d\n", pin, channel, duty);
                 ledc_set_duty(LEDC_LOW_SPEED_MODE, (ledc_channel_t)channel, duty);
                 ledc_update_duty(LEDC_LOW_SPEED_MODE, (ledc_channel_t)channel);
             }
