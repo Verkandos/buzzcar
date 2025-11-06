@@ -43,9 +43,9 @@ class ControlConfig {
 
         // === MOTOR CONFIGURATION ===
         struct MotorSettings {
-            int baseSpeed = 30;      // Base speed for motors (0-100%)
-            int turnSpeed = 0;      // Speed during turns (0-100%)
-            int minStartPWM = 0; // Minimum PWM to start motor movement
+            int baseSpeed = 50;      // Base speed for motors (0-100%)
+            int turnSpeed = 30;      // Speed during turns (0-100%)
+            int minStartPWM = 0;     // Minimum PWM to start motor movement
             int maxPWM = 255;        // Maximum PWM value
             int motorFrequency = 10000; // PWM frequency in Hz (10kHz)
         } motor;
@@ -62,9 +62,9 @@ class ControlConfig {
 
         // === LINE DETECTION CONFIGURATION ===
         struct LineSettings {
-            int blackThreshold = 2000;    // ADC threshold for line detection (0-4095) LOOK AT FILES for;
-            int whiteThreshold = 100; // ADC threshold for white line detection (0-4095)
-            int sensorReadInterval = 10; // Sensor read interval in milliseconds
+            int blackThreshold = 500;     // ADC threshold for black detection (<X = black)
+            int whiteThreshold = 2500;    // ADC threshold for white detection (>X = white)
+            int sensorReadInterval = 10;  // Sensor read interval in milliseconds
         } sensors;
 
         // == TIMING CONFIGURATION ===
