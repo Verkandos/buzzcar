@@ -21,43 +21,26 @@ void TurnLeftState::onEntry(ControlSubsystem* context) {
     context->getMotorB()->setSpeed(config.motor.turnSpeed); // Right motor at turn speed
 }
 void TurnLeftState::onUpdate(ControlSubsystem* context) {
-    // Check line state to see if turn is complete
+    ControlConfig& config = ControlConfig::getInstance();
+    
+    // Maintain turn - left motor off, right motor turning
+    // Use PID for fine-tuning if still detecting turn state
     LineState currentState = context->getLineDetector()->detectLineState();
-
-    switch (currentState) {
-        case LineState::ON_LINE:
-            // If back on line, transition to Forward state
-            context->getFSM()->handleEvent(Event(EventType::FORWARD));
-            break;
-        case LineState::TURN_LEFT:
-            // Still need to turn - continue current motor configuration
-            // Use PID to fine-turn the turn based on how far off we are
-            {
-                float linePosition = context->getLineDetector()->calculateLinePosition();
-                float pidOutput = pidController.compute(-0.5f, linePosition); // Target is -0.5 for left turn
-
-                // Adjust motor speeds based on PID output
-                int rightMotorSpeed = turnSpeed + (int)pidOutput;
-                rightMotorSpeed = constrain(rightMotorSpeed, 10, 80); // Ensure within bounds
-
-                context->getMotorA()->setSpeed(0);
-                context->getMotorB()->setSpeed(rightMotorSpeed); // Adjusted right motor
-            }
-            break;
-
-        case LineState::OFF_LINE:
-            // Lost the line - stop and wait for further instructions
-            context->getFSM()->handleEvent(Event(EventType::STOP));
-            break;
-        case LineState::TURN_RIGHT:
-            // Shouldn't happen during a left turn, but if it does, go to forward
-            context->getFSM()->handleEvent(Event(EventType::FORWARD));
-            break;
-        default:
-            // Unknown state - continue turning cautiously
-            context->getMotorA()->setSpeed(0);
-            context->getMotorB()->setSpeed(turnSpeed / 2); // Slow turn
-            break;
+    
+    if (currentState == LineState::TURN_LEFT) {
+        // Fine-tune turn speed with PID
+        float linePosition = context->getLineDetector()->calculateLinePosition();
+        float pidOutput = pidController.compute(-0.5f, linePosition); // Target is -0.5 for left turn
+        
+        int rightMotorSpeed = config.motor.turnSpeed + (int)pidOutput;
+        rightMotorSpeed = constrain(rightMotorSpeed, 10, 80);
+        
+        context->getMotorA()->setSpeed(0);
+        context->getMotorB()->setSpeed(rightMotorSpeed);
+    } else {
+        // Maintain basic turn configuration - let generateEvent() handle state transitions
+        context->getMotorA()->setSpeed(0);
+        context->getMotorB()->setSpeed(config.motor.turnSpeed);
     }
 }
 void TurnLeftState::onExit(ControlSubsystem* context) {
