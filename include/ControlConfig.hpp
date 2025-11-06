@@ -33,8 +33,8 @@ class ControlConfig {
             int audio = 0;           // Audio/Speaker (PWM GPIO Pin)
             int lcdData = 22;         // LCD Data (GPIO Pin)
             int lcdClk = 21;          // LCD Clock (GPIO Pin)
-            int motorA = 20;          // Motor A (PWM GPIO Pin)
-            int motorB = 19;          // Motor B (PWM GPIO Pin)
+            int motorA = 19;          // Motor A (PWM GPIO Pin) - LEFT MOTOR (swapped from 20)
+            int motorB = 20;          // Motor B (PWM GPIO Pin) - RIGHT MOTOR (swapped from 19)
 
 
             // Protection pin (high impedance)
@@ -52,7 +52,7 @@ class ControlConfig {
 
         // === PID CONTROLLER CONFIGURATION ===
         struct PIDSettings {
-            float Kp = 3.0f;         // Proportional gain
+            float Kp = 2.0f;         // Proportional gain
             float Ki = 0.05f;         // Integral gain
             float Kd = 1.0f;         // Derivative gain
             float outputMin = -50.0f; // Minimum PID output
