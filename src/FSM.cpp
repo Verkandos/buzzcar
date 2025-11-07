@@ -120,11 +120,12 @@ void FSM::handleEvent(const Event& event) {
         case EventType::FORWARD:
             Serial.printf("FSM: Handling FORWARD event, current state: %s\n", getCurrentStateName());
             if (strcmp(getCurrentStateName(), "TurnLeftState") == 0 || 
-                strcmp(getCurrentStateName(), "TurnRightState") == 0) {
-                Serial.println("FSM: Transitioning from Turn state to ForwardState");
+                strcmp(getCurrentStateName(), "TurnRightState") == 0 ||
+                strcmp(getCurrentStateName(), "StopState") == 0) {
+                Serial.println("FSM: Transitioning to ForwardState");
                 transitionTo(new ForwardState());
             } else {
-                Serial.println("FSM: FORWARD ignored - not in Turn state");
+                Serial.println("FSM: FORWARD ignored - not in valid state");
             }
             break;
         
