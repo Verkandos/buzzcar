@@ -29,11 +29,11 @@
 
 // PHASE I: Pairwise Integration Tests - Enable ONLY ONE test at a time
 const bool TEST_CONTROL_UI = false;        // Control + UI integration
-const bool TEST_CONTROL_SPEAKER = true;   // Control + Speaker integration  
+const bool TEST_CONTROL_SPEAKER = false;   // Control + Speaker integration  
 const bool TEST_CONTROL_SCREEN = false;    // Control + Screen integration
 const bool TEST_CONTROL_AUDIOVISUAL = false; // Control + Speaker + Screen integration
 const bool TEST_CONTROL_MOTORS = false;    // Control + Motors integration
-const bool TEST_CONTROL_SENSORS = false;   // Control + Sensors integration
+const bool TEST_CONTROL_SENSORS = true;   // Control + Sensors integration
 const bool TEST_CONTROL_POWER = false;     // Control + Power integration
 
 // PHASE II: Progressive Full Integration Tests - Enable ONLY ONE test at a time
@@ -43,7 +43,7 @@ const bool TEST_UI_AV_SENSORS_MOTORS = false; // Control + UI + AV + Sensors + M
 
 // TEST 5 (SENSORS) SUB-MODE CONFIGURATION - Enable ONLY ONE mode when TEST_CONTROL_SENSORS = true
 const bool SENSOR_MODE_RAW_READINGS = false;      // Show raw sensor values every 3 seconds
-const bool SENSOR_MODE_LINE_DETECTION = false;    // Show LineDetection states with setup/display cycles
+const bool SENSOR_MODE_LINE_DETECTION = true;    // Show LineDetection states with setup/display cycles
 
 // Global test objects
 GPIOManager* gpio = nullptr;
@@ -587,13 +587,13 @@ void runControlSensorsTest() {
                 // Get configuration instance for thresholds
                 ControlConfig& config = ControlConfig::getInstance();
                 
-                // Determine what each sensor detects (BLACK or WHITE)
-                const char* leftDetection = (leftRaw > config.sensors.blackThreshold) ? "BLACK" : 
-                                           (leftRaw < config.sensors.whiteThreshold) ? "WHITE" : "GRAY";
-                const char* centerDetection = (centerRaw > config.sensors.blackThreshold) ? "BLACK" : 
-                                             (centerRaw < config.sensors.whiteThreshold) ? "WHITE" : "GRAY";
-                const char* rightDetection = (rightRaw > config.sensors.blackThreshold) ? "BLACK" : 
-                                            (rightRaw < config.sensors.whiteThreshold) ? "WHITE" : "GRAY";
+                // Determine what each sensor detects (BLACK or WHITE) [debug info]
+                // const char* leftDetection = (leftRaw > config.sensors.blackThreshold) ? "BLACK" : 
+                //                            (leftRaw < config.sensors.whiteThreshold) ? "WHITE" : "GRAY";
+                // const char* centerDetection = (centerRaw > config.sensors.blackThreshold) ? "BLACK" : 
+                //                              (centerRaw < config.sensors.whiteThreshold) ? "WHITE" : "GRAY";
+                // const char* rightDetection = (rightRaw > config.sensors.blackThreshold) ? "BLACK" : 
+                //                             (rightRaw < config.sensors.whiteThreshold) ? "WHITE" : "GRAY";
                 
                 // Get LineDetector analysis
                 LineState lineState = lineDetector->detectLineState();
@@ -603,8 +603,8 @@ void runControlSensorsTest() {
                 Serial.println("=== LINE DETECTION STATE ===");
                 Serial.printf("Raw Values -> Left: %4d | Center: %4d | Right: %4d\n", 
                              leftRaw, centerRaw, rightRaw);
-                Serial.printf("Detection  -> Left: %-5s | Center: %-5s | Right: %-5s\n",
-                             leftDetection, centerDetection, rightDetection);
+                // Serial.printf("Detection  -> Left: %-5s | Center: %-5s | Right: %-5s\n",
+                //              leftDetection, centerDetection, rightDetection);
                 
                 // Display line detection state
                 Serial.print("Line State: ");
@@ -1171,8 +1171,8 @@ void runUIAVSensorsMotorsTest() {
                                     (rightRaw < config.sensors.whiteThreshold) ? "WHITE" : "GRAY";
         
         // Get LineDetector analysis
-        // LineState lineState = lineDetector->detectLineState();
-        LineState lineState = LineState::ON_LINE;
+        LineState lineState = lineDetector->detectLineState();
+        // LineState lineState = LineState::ON_LINE; // Hardcoded for testing
         float linePosition = lineDetector->calculateLinePosition();
         
         // Map LineState to motor commands and AV feedback
