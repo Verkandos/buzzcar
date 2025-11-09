@@ -1,0 +1,101 @@
+#include "Arduino.h"
+#include "Motor.hpp"
+#include "GPIOManager.hpp"
+#include "ControlConfig.hpp"
+
+Motor::Motor() 
+    : pinPWM(-1), currentSpeedPercent(0), minPWM(0), maxPWM(255), minimumStartPWM(50) {
+    // Default constructor
+}
+
+Motor::Motor(int pin) 
+    : pinPWM(pin), currentSpeedPercent(0), minPWM(0), maxPWM(255), minimumStartPWM(50) {
+    // Constructor with pin
+}
+
+void Motor::initialize() {
+    if (pinPWM != -1) {
+        ControlConfig& config = ControlConfig::getInstance();
+        GPIOManager& gpio = GPIOManager::getInstance();
+
+        // Configure pin as PWM output with 10kHz
+        gpio.configurePWMPin(pinPWM, config.motor.motorFrequency, 8);
+        
+        //Start with motor explicitly stopped at 0 duty
+        applyPWM(0);
+        
+        // Add small delay to let hardware settle
+        delay(5);
+    }
+}
+
+void Motor::initialize(int pin) {
+    pinPWM = pin;
+    initialize();
+}
+
+void Motor::activate() {
+    initialize();
+}
+
+void Motor::setSpeed(int speedPercent) {
+    // speedPercent: 0-100
+    currentSpeedPercent = constrain(speedPercent, 0, 100);
+    
+    int pwmValue;
+    if (currentSpeedPercent == 0) {
+        pwmValue = 0; // Complete stop
+    } else {
+        // Map speed percentage to effective PWM range
+        // Avoid dead zone by using minimumStartPWM as lower bound
+        pwmValue = map(currentSpeedPercent, 1, 100, minimumStartPWM, maxPWM);
+        pwmValue = constrain(pwmValue, minimumStartPWM, maxPWM);
+    }
+    
+    applyPWM(pwmValue);
+}
+
+void Motor::setPWMRange(int min, int max) {
+    // Configure motor's operating PWM range
+    minPWM = constrain(min, 0, 255);
+    maxPWM = constrain(max, min, 255);
+}
+
+void Motor::setMinimumStartPWM(int pwm) {
+    // Set minimum PWM needed
+    // Prevents motors from stalling at low corrections
+    minimumStartPWM = constrain(pwm, 0, maxPWM);
+}
+
+void Motor::stop() {
+    // Immediate stop
+    setSpeed(0);
+}
+
+int Motor::getCurrentSpeed() const {
+    return currentSpeedPercent;
+}
+
+int Motor::getCurrentPWM() const {
+    // Return actual PWM being applied
+    if (currentSpeedPercent == 0) return 0;
+    return map(currentSpeedPercent, 1, 100, minimumStartPWM, maxPWM);
+}
+
+bool Motor::isRunning() const {
+    return currentSpeedPercent > 0;
+}
+
+int Motor::getMinimumStartPWM() const {
+    return minimumStartPWM;
+}
+
+// hardware interface
+void Motor::applyPWM(int pwmValue) {
+    if (pinPWM != -1) {
+        pwmValue = constrain(pwmValue, 0, 255);
+        
+        GPIOManager& gpio = GPIOManager::getInstance();
+        gpio.writePWM(pinPWM, pwmValue);
+    }
+}
