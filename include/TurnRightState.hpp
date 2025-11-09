@@ -16,8 +16,4 @@ public:
     void onEntry(ControlSubsystem* controlSys) override;
     void onUpdate(ControlSubsystem* controlSys) override;
     void onExit(ControlSubsystem* controlSys) override;
-
-    // Configuration methods
-    void setTurnSpeed(int speed);
-    void setPIDGains(float p, float i, float d);
 };

@@ -35,14 +35,4 @@ class Event {
 
         // Getters
         EventType getType() const;
-        int getData() const;
-        unsigned long getTimestamp() const;
-
-        // Utility methods
-        bool isValid() const;
-        const char* toString() const;
-
-        // Comparison operators
-        bool operator==(const Event& other) const;
-        bool operator!=(const Event& other) const;
 };

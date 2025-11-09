@@ -127,20 +127,6 @@ float LineDetector::calculateLinePosition() const {
     return 0.0f; // Default to centered
 }
 
-    void LineDetector::setThresholds(int blackThreshold, int whiteThreshold) {
-        // Validate thresholds
-        if (blackThreshold < whiteThreshold && blackThreshold >= 0 && whiteThreshold <= 4095) {
-            this->blackThreshold = blackThreshold;
-            this->whiteThreshold = whiteThreshold;
-        }
-        // If validation fails, do not update thresholds
-}
-
-void LineDetector::getThresholds(int& blackThreshold, int& whiteThreshold) const {
-    blackThreshold = this->blackThreshold;
-    whiteThreshold = this->whiteThreshold;
-}
-
 void LineDetector::getRawReadings(int& left, int& center, int& right) const {
     left = sensorL.readRaw();
     center = sensorC.readRaw();

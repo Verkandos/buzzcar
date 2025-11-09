@@ -38,7 +38,4 @@ class PIDController {
         // Set integral windup limit
         void setIntegralLimit(float limit);
 
-        // Get current PID parameters 
-        void getTunings(float& kp, float& ki, float& kd) const;
-
 };

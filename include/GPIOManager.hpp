@@ -28,7 +28,6 @@ class GPIOManager {
         void configurePin(int pin, const std::string& mode);
         void configurePWMPin(int pin, int frequency = 1000, int resolution = 8);
         void writePWM(int pin, int duty);
-        void writeDigital(int pin, bool value);
         int readAnalog(int pin);
         bool readDigital(int pin);
         void setFrequency(int pin, int frequency);

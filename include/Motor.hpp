@@ -17,7 +17,7 @@ class Motor : public Actuator {
         // Initiliazation
         void initialize();
         void initialize(int pin);
-        
+
         // Actuator interface
         void activate() override;
 
@@ -32,6 +32,5 @@ class Motor : public Actuator {
         int getCurrentPWM() const;
         int getMinimumStartPWM() const;
         int getMaxPWM() const;
-        int getMinPWM() const;
         bool isRunning() const;
 };

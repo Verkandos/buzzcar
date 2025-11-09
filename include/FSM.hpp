@@ -37,8 +37,5 @@ class FSM {
         void reset();
         // Check if FSM is in a specific state
         bool isInState(const char* stateName) const;
-        
-        // Validate if a transition is allowed
-        bool isValidTransition(EventType eventType) const;
 
 };

@@ -201,31 +201,6 @@ void FSM::transitionTo(State* newState) {
  *       - FORWARD only valid from TurnLeftState or TurnRightState
  *       - OFF_LINE valid from any active state (not Stop/Idle)
  */
-bool FSM::isValidTransition(EventType eventType) const {
-    switch (eventType) {
-        case EventType::STOP:
-            return true; // STOP is always valid (emergency)
-        
-        case EventType::START:
-            return isInState("StopState");
-
-        case EventType::START_MOVEMENT:
-            return isInState("IdleState");
-        
-        case EventType::TURN_LEFT:
-        case EventType::TURN_RIGHT:
-            return isInState("ForwardState");
-
-        case EventType::FORWARD:
-            return isInState("TurnLeftState") || isInState("TurnRightState");
-        
-        case EventType::OFF_LINE:
-            return !isInState("StopState") && !isInState("IdleState");
-
-        default:
-            return false;
-    }
-}
 /**
  * @brief Get pointer to the current state
  * 

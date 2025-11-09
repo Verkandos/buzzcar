@@ -28,8 +28,6 @@ class LineDetector {
 
         LineState detectLineState();
         float calculateLinePosition() const; // -1.0 (left) to 1.0 (right)
-        void setThresholds(int blackThreshold, int whiteThreshold);
-        void getThresholds(int& blackThreshold, int& whiteThreshold) const;
         void getRawReadings(int& left, int& center, int& right) const;
         
 };

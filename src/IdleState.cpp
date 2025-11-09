@@ -36,7 +36,3 @@ void IdleState::onUpdate(ControlSubsystem* context) {
 void IdleState::onExit(ControlSubsystem* context) {
     isWaiting = false; // Reset waiting flag
 }
-
-void IdleState::setWaitDuration(int durationMs) {
-    waitDuration = durationMs;
-}

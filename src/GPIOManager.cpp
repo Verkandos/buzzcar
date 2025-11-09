@@ -220,9 +220,6 @@ void GPIOManager::writePWM(int pin, int duty) {
  * @param pin The GPIO pin number to write to
  * @param value The digital value to write (true=HIGH, false=LOW)
  */
-void GPIOManager::writeDigital(int pin, bool value) {
-    digitalWrite(pin, value ? HIGH : LOW);
-}
 /**
  * @brief Reads an analog value from an input pin
  * 

@@ -92,9 +92,3 @@ void PIDController::setIntegralLimit(float limit) {
         integralLimit = limit;
     }
 }
-
-void PIDController::getTunings(float& kp, float& ki, float& kd) const {
-    kp = this->kp;
-    ki = this->ki;
-    kd = this->kd;
-}

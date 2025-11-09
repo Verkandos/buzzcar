@@ -35,8 +35,7 @@ void Motor::initialize(int pin) {
 }
 
 void Motor::activate() {
-    ControlConfig& config = ControlConfig::getInstance();
-    setSpeed(config.motor.baseSpeed);
+    initialize();
 }
 
 void Motor::setSpeed(int speedPercent) {
@@ -89,10 +88,6 @@ bool Motor::isRunning() const {
 
 int Motor::getMinimumStartPWM() const {
     return minimumStartPWM;
-}
-
-int Motor::getMaxPWM() const {
-    return maxPWM;
 }
 
 // hardware interface

@@ -46,11 +46,3 @@ void ForwardState::onExit(ControlSubsystem* context) {
     context->getMotorA()->setSpeed(0);
     context->getMotorB()->setSpeed(0);
 }
-
-void ForwardState::setPIDGains(float p, float i, float d) {
-    pidController.setTunings(p, i, d);
-}
-
-void ForwardState::setBaseSpeed(int speed) {
-    baseSpeed = constrain(speed, 0, 100);
-}

@@ -48,11 +48,3 @@ void TurnLeftState::onExit(ControlSubsystem* context) {
     context->getMotorA()->setSpeed(0);
     context->getMotorB()->setSpeed(0);
 }
-
-void TurnLeftState::setTurnSpeed(int speed) {
-    turnSpeed = constrain(speed, 10, 80); // Limit turn speed
-}
-
-void TurnLeftState::setPIDGains(float kp, float ki, float kd) {
-    pidController.setTunings(kp, ki, kd);
-}

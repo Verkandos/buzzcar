@@ -15,9 +15,4 @@ class ForwardState : public State {
         void onEntry(ControlSubsystem* controlSys) override;
         void onUpdate(ControlSubsystem* controlSys) override;
         void onExit(ControlSubsystem* controlSys) override;
-
-        // PID specific methods
-        
-        void setPIDGains(float p, float i, float d);
-        void setBaseSpeed(int speed);
 };

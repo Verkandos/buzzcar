@@ -5,9 +5,6 @@ class PhotoSensor {
         int pinAnalog;
         int lineThreshold;
         int currentRawValue;
-        int calibrationMin;
-        int calibrationMax;
-        bool isCalibrated;
         
     public:
         PhotoSensor();
@@ -19,18 +16,10 @@ class PhotoSensor {
         
         // Reading Methods
         int readRaw();                    // Raw ADC value
-        float readNormalized();           // 0.0-1.0 normalized
-        bool detectLine();                // Line detection
-        bool detectDarkSurface();         // Dark surface
-        bool detectLightSurface();        // Light surface
         
-        // Configuration & Calibration
+        // Configuration
         void setLineThreshold(int threshold);
-        void calibrate(int durationMs = 3000);
-        void setCalibration(int minValue, int maxValue);
         
         // Status
         int getThreshold() const;
-        int getCurrentReading() const;
-        bool isCalibrationComplete() const;
 };

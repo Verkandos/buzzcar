@@ -16,6 +16,4 @@ class IdleState : public State {
         void onEntry(ControlSubsystem* controlSys) override;
         void onUpdate(ControlSubsystem* controlSys) override;
         void onExit(ControlSubsystem* controlSys) override;
-
-        void setWaitDuration(int durationMs);
 };

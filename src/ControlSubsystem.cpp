@@ -10,6 +10,7 @@
 #include "Speaker.h"
 #include "Screen.h"
 #include "ControlConfig.hpp"
+#include "Motor.hpp"
 
 /**
  * @brief Constructs a new ControlSubsystem instance
@@ -180,19 +181,6 @@ void ControlSubsystem::update() {
 }
 
 /**
- * @brief Handles events by delegating to generateEvent()
- * 
- * This method serves as a wrapper around generateEvent() for compatibility
- * with the existing event handling interfrace.
- * 
- * @return Event The generated event based on current system state
- * 
- */
-Event ControlSubsystem::handleEvent() {
-    // Handle the event and return result
-    return generateEvent();
-}
-/**
  * @brief Generates events based on current sensor readings and car state
  * 
  * Analyzes the current line detection state and car FSM state to determine
@@ -254,11 +242,6 @@ Event ControlSubsystem::generateEvent() {
             lastTurnDirection = LastTurn::RIGHT;  // Remember this turn
             return Event(EventType::TURN_RIGHT);
         }
-        else if (lineState == LineState::OFF_LINE) {
-            Serial.println("Event: OFF_LINE detected while forward");
-            return Event(EventType::OFF_LINE);
-        }
-        // else: ON_LINE - stay in forward
     }
     
     // === STATE: TURN LEFT ===
@@ -303,14 +286,8 @@ Event ControlSubsystem::generateEvent() {
         // else: TURN_RIGHT - keep turning right
     }
     
-    // === STATE: STOP/OFF_LINE ===
+    // === STATE: STOP/OFF_LINE ==
     else if (strcmp(currentStateName, "StopState") == 0) {
-        // Check for timeout (safety)
-        if (millis() - lastLineSeenTime > LINE_LOST_TIMEOUT) {
-            Serial.println("Event: Line lost for too long - EMERGENCY STOP");
-            lastTurnDirection = LastTurn::NONE;
-            return Event(EventType::NONE);  // Stay stopped
-        }
         
         if (lineState == LineState::OFF_LINE) {
             // Use turn memory to recover

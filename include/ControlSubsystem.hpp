@@ -59,7 +59,6 @@ class ControlSubsystem {
         // Core functionality
         void initialize();
         void update();
-        Event handleEvent();
 
         // Getters for hardware components
         Motor* getMotorA() const { return motorA; }
